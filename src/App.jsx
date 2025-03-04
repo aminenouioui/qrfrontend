@@ -1,8 +1,9 @@
 import { BrowserRouter as Router, Route, Routes } from 'react-router-dom';
 import AdminLogin from './pages/AdminLogin';
-import AdminSignUp from './pages/AdminSignUp';
+import AdminSignUp from './pages/AdminSignup';
 import Dashboard from './components/AdminDashboard';
-import AdminLayout from './layouts/AdminLayout';
+import Student_management from './components/student_management';
+import AdminLayout from './layouts/AdminLayout'; // Import the shared layout
 
 const App = () => {
   return (
@@ -12,15 +13,11 @@ const App = () => {
         <Route path="/admin/login" element={<AdminLogin />} />
         <Route path="/admin/signup" element={<AdminSignUp />} />
 
-        {/* Private Routes (With Layout) */}
-        <Route
-          path="/admin/dashboard"
-          element={
-            <AdminLayout>
-              <Dashboard />
-            </AdminLayout>
-          }
-        />
+        {/* Admin Routes with Shared Layout */}
+        <Route path="/admin" element={<AdminLayout />}>
+          <Route path="dashboard" element={<Dashboard />} />
+          <Route path="students" element={<Student_management />} />
+        </Route>
       </Routes>
     </Router>
   );

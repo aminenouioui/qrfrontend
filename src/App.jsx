@@ -3,6 +3,7 @@ import AdminLogin from './pages/AdminLogin';
 import AdminSignUp from './pages/AdminSignup';
 import Dashboard from './components/AdminDashboard';
 import Student_management from './components/student_management';
+import StudentListe from './components/studentliste';
 import AdminLayout from './layouts/AdminLayout'; // Import the shared layout
 
 const App = () => {
@@ -17,6 +18,7 @@ const App = () => {
         <Route path="/admin" element={<AdminLayout />}>
           <Route path="dashboard" element={<Dashboard />} />
           <Route path="students" element={<Student_management />} />
+          <Route path="students/list" element={<StudentListe />} />
         </Route>
       </Routes>
     </Router>

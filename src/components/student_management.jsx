@@ -25,9 +25,11 @@ import {
   BarChart,
   PlusCircle,
 } from "lucide-react"
+import { useNavigate } from 'react-router-dom';
 
 function Student_management() {
   const [isMenuOpen, setIsMenuOpen] = useState(false)
+  const navigate = useNavigate();
 
   // Student management sections
   const sections = [
@@ -38,6 +40,7 @@ function Student_management() {
       color: "from-blue-500 to-blue-600",
       stats: "1,248 students",
       action: "View Lists",
+      onClick: () => navigate('/admin/students/list')
     },
     {
       title: "Student Grades",
@@ -219,6 +222,7 @@ function Student_management() {
                 <div
                   key={index}
                   className="group relative overflow-hidden rounded-xl bg-white/5 backdrop-blur-sm border border-white/10 shadow-lg transition-all duration-300 hover:shadow-xl hover:-translate-y-1 hover:scale-[1.02] perspective-3d"
+                  onClick={section.onClick}
                 >
                   <div className="absolute inset-0 bg-gradient-to-br opacity-0 group-hover:opacity-10 transition-opacity duration-300"></div>
                   <div className="absolute -top-10 -right-10 w-40 h-40 bg-gradient-to-br opacity-10 blur-2xl filter"></div>

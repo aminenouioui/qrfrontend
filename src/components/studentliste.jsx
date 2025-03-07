@@ -938,7 +938,11 @@ export default function StudentList() {
     }
     return cookieValue;
   }
+  
 
+  
+  
+  
   const filteredStudents = students.filter((student) => {
     const matchesSearch =
       searchQuery === "" ||

@@ -127,15 +127,24 @@ function Dashboard() {
                 color: "from-red-500 to-red-600",
                 path: "/admin/students", // Added path for navigation
               },
-              { name: "teachers", icon: <GraduationCap className="h-8 w-8" />, color: "from-green-500 to-green-600" },
-              { name: "parents", icon: <User className="h-8 w-8" />, color: "from-pink-500 to-pink-600" },
-              { name: "levels", icon: <Book className="h-8 w-8" />, color: "from-blue-500 to-blue-600" },
-              { name: "classes", icon: <School className="h-8 w-8" />, color: "from-amber-500 to-amber-600" },
-              { name: "notes", icon: <File className="h-8 w-8" />, color: "from-lime-500 to-lime-600" },
-              { name: "subjects", icon: <Bookmark className="h-8 w-8" />, color: "from-violet-500 to-violet-600" },
-              { name: "Exam Result", icon: <Medal className="h-8 w-8" />, color: "from-indigo-500 to-indigo-600" },
-              { name: "attendance", icon: <CalendarCheck2 className="h-8 w-8" />, color: "from-red-500 to-red-600" },
-              { name: "settings", icon: <Settings className="h-8 w-8" />, color: "from-slate-500 to-slate-600" },
+              { name: "teachers", icon: <GraduationCap className="h-8 w-8" />, color: "from-green-500 to-green-600", path: "/admin/teachers" }, // Added path for navigation
+
+              { name: "parents", icon: <User className="h-8 w-8" />, color: "from-pink-500 to-pink-600", path: "/admin/parents" }, // Added path for navigation
+
+              { name: "levels", icon: <Book className="h-8 w-8" />, color: "from-blue-500 to-blue-600", path: "/admin/levels" }, // Added path for navigation
+
+              { name: "classes", icon: <School className="h-8 w-8" />, color: "from-amber-500 to-amber-600", path: "/admin/classes" }, // Added path for navigation
+
+              { name: "notes", icon: <File className="h-8 w-8" />, color: "from-lime-500 to-lime-600", path: "/admin/notes" }, // Added path for navigation
+
+              { name: "subjects", icon: <Bookmark className="h-8 w-8" />, color: "from-violet-500 to-violet-600", path: "/admin/subjects" }, // Added path for navigation
+
+              { name: "Exam Result", icon: <Medal className="h-8 w-8" />, color: "from-indigo-500 to-indigo-600", path: "/admin/exam-results" }, // Added path for navigation
+
+              { name: "attendance", icon: <CalendarCheck2 className="h-8 w-8" />, color: "from-red-500 to-red-600", path: "/admin/attendance" }, // Added path for navigation
+
+              { name: "settings", icon: <Settings className="h-8 w-8" />, color: "from-slate-500 to-slate-600", path: "/admin/settings" }, // Added path for navigation
+
             ].map((item, index) => (
               <div key={index} className="relative overflow-hidden rounded-xl bg-white/5 p-6 shadow-lg transition-all duration-300 hover:shadow-xl hover:-translate-y-1 hover:cursor-pointer">
                 {item.path ? (

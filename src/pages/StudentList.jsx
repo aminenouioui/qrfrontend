@@ -1,12 +1,18 @@
-import React from 'react';
+import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom'; // Import useNavigate for navigation
 
 const StudentList = () => {
+  const navigate = useNavigate(); // Initialize useNavigate
   // Example student data - replace with your actual data source
-  const students = [
+  const [students, setStudents] = useState([
     { id: 1, name: 'John Doe', class: '10A', rollNo: '001' },
     { id: 2, name: 'Jane Smith', class: '10B', rollNo: '002' },
     // Add more students as needed
-  ];
+  ]);
+
+  const handleDelete = (id) => {
+    setStudents(students.filter(student => student.id !== id)); // Remove student from the list
+  };
 
   return (
     <div className="p-6">
@@ -43,7 +49,8 @@ const StudentList = () => {
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                   <button className="text-indigo-600 hover:text-indigo-900 mr-3">Edit</button>
-                  <button className="text-red-600 hover:text-red-900">Delete</button>
+                  <button className="text-green-600 hover:text-green-900 mr-3" onClick={() => navigate(`/admin/student_detail/${student.id}`)}>👁️</button>
+                  <button className="text-red-600 hover:text-red-900" onClick={() => handleDelete(student.id)}>Delete</button>
                 </td>
               </tr>
             ))}
@@ -54,4 +61,4 @@ const StudentList = () => {
   );
 };
 
-export default StudentList; 
+export default StudentList;

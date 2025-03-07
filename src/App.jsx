@@ -6,6 +6,9 @@ import Student_management from './components/student_management';
 import StudentListe from './components/studentliste';
 import AdminLayout from './layouts/AdminLayout'; // Import the shared layout
 import StudentDetails from './components/studentdetail';
+import Attendance from './components/attendance';
+import Schedule from './components/schedule';
+import Grades from './components/grades';
 const App = () => {
   return (
     <Router>
@@ -14,7 +17,10 @@ const App = () => {
         <Route path="/admin/login" element={<AdminLogin />} />
         <Route path="/admin/signup" element={<AdminSignUp />} />
         <Route path="/admin/studentdetail" element={<StudentDetails />} />
-
+        <Route path="/admin/attendance" element={<Attendance />} />
+        <Route path="/admin/schedule" element={<Schedule />} />
+        <Route path="/admin/grades" element={<Grades />} />
+        
         {/* Admin Routes with Shared Layout */}
         <Route path="/admin" element={<AdminLayout />}>
           <Route path="dashboard" element={<Dashboard />} />

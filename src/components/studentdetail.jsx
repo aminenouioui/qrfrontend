@@ -18,6 +18,7 @@ import {
 } from "lucide-react"
 import { Canvas } from "@react-three/fiber"
 import { OrbitControls, PerspectiveCamera, Environment, Html } from "@react-three/drei"
+import { useSearchParams, useNavigate } from 'react-router-dom'
  
 // 3D Student Avatar Component
 function StudentAvatar({ photo }) {
@@ -93,7 +94,10 @@ function StudentQRCode({ studentId, studentName }) {
 }
  
 // Student Details Component
-export default function StudentDetails({ studentId }) {
+export default function StudentDetails() {
+  const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const studentId = searchParams.get('id');
   const [student, setStudent] = useState(null)
   const [loading, setLoading] = useState(true)
   const [activeTab, setActiveTab] = useState("overview")
@@ -232,7 +236,12 @@ export default function StudentDetails({ studentId }) {
       <header className="bg-[#1e293b] p-4">
         <div className="container mx-auto">
           <div className="flex items-center gap-3">
-           
+            <button 
+              onClick={() => navigate('/admin/students/list')}
+              className="p-2 bg-blue-500/20 border border-blue-500/30 rounded-full hover:bg-blue-500/30 transition-colors"
+            >
+              <ArrowLeft className="h-5 w-5" />
+            </button>
             <div>
               <h1 className="text-xl font-bold">Student Details</h1>
               <p className="text-sm text-gray-400">View and manage student information</p>

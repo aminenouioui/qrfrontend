@@ -4,6 +4,7 @@ import { useState, useRef, useEffect } from "react";
 import { Search, Plus, Filter, ChevronLeft, ChevronRight, Download, Trash2, Edit, Eye, X, Upload } from "lucide-react";
 import { Canvas } from "@react-three/fiber";
 import { OrbitControls, PerspectiveCamera, Environment, Html } from "@react-three/drei";
+import { useNavigate } from 'react-router-dom';
 
 // Add Student Modal Component
 function AddStudentModal({ isOpen, onClose, onAddStudent, levels }) {
@@ -732,6 +733,7 @@ export default function StudentList() {
   const [students, setStudents] = useState([]);
   const [levels, setLevels] = useState([]);
   const [studentToEdit, setStudentToEdit] = useState(null);
+  const navigate = useNavigate();
 
   // Fetch levels and students on mount
   useEffect(() => {
@@ -972,6 +974,10 @@ export default function StudentList() {
 
   const levelOptions = [{ id: "All", level: "All Levels" }, ...levels];
 
+  const handleViewDetails = (studentId) => {
+    navigate(`/admin/studentdetail?id=${studentId}`);
+  };
+
   return (
     <div className="min-h-screen bg-[#111827] text-white" style={{ overflowY: "auto" }}>
       <header className="bg-[#1e293b] p-4 flex justify-between items-center">
@@ -1146,7 +1152,10 @@ export default function StudentList() {
                   <td className="px-6 py-4 whitespace-nowrap text-sm">{student.adresse}</td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm">
                     <div className="flex gap-2">
-                      <button className="p-1 bg-blue-500 rounded-full hover:bg-blue-600">
+                      <button 
+                        onClick={() => handleViewDetails(student.id)}
+                        className="p-1 bg-blue-500 rounded-full hover:bg-blue-600"
+                      >
                         <Eye size={16} />
                       </button>
                       <button

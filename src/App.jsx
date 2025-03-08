@@ -9,6 +9,9 @@ import StudentDetails from './components/studentdetail';
 import Attendance from './components/attendance';
 import Schedule from './components/schedule';
 import Grades from './components/grades';
+import Level from './components/level';
+import Rooms from './components/rooms';
+import Subjects from './components/subjects';
 const App = () => {
   return (
     <Router>
@@ -21,11 +24,15 @@ const App = () => {
         <Route path="/admin/schedule" element={<Schedule />} />
         <Route path="/admin/grades" element={<Grades />} />
         
+
         {/* Admin Routes with Shared Layout */}
         <Route path="/admin" element={<AdminLayout />}>
           <Route path="dashboard" element={<Dashboard />} />
           <Route path="students" element={<Student_management />} />
           <Route path="students/list" element={<StudentListe />} />
+          <Route path="level" element={<Level />} />
+          <Route path="rooms" element={<Rooms />} />
+          <Route path="subjects" element={<Subjects />} />
         </Route>
       </Routes>
     </Router>

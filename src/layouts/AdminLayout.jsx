@@ -15,6 +15,7 @@ import {
   Search,
   Bell,
   Menu,
+  DoorClosed,
 } from "lucide-react";
 
 const AdminLayout = () => {
@@ -46,12 +47,9 @@ const AdminLayout = () => {
                 { name: "Students", icon: <Users className="h-5 w-5" />, path: "/admin/students" },
                 { name: "Teachers", icon: <GraduationCap className="h-5 w-5" />, path: "/admin/teachers" },
                 { name: "Parents", icon: <UserRound className="h-5 w-5" />, path: "/admin/parents" },
-                { name: "Levels", icon: <BookOpen className="h-5 w-5" />, path: "/admin/levels" },
-                { name: "Classes", icon: <School className="h-5 w-5" />, path: "/admin/classes" },
-                { name: "Notes", icon: <FileText className="h-5 w-5" />, path: "/admin/notes" },
+                { name: "Levels", icon: <BookOpen className="h-5 w-5" />, path: "/admin/level" },
+                { name: "Rooms", icon: <DoorClosed className="h-5 w-5" />, path: "/admin/rooms"},
                 { name: "Subjects", icon: <BookMarked className="h-5 w-5" />, path: "/admin/subjects" },
-                { name: "Exam Result", icon: <Award className="h-5 w-5" />, path: "/admin/exam-result" },
-                { name: "Attendance", icon: <CalendarCheck className="h-5 w-5" />, path: "/admin/attendance" },
                 { name: "Settings", icon: <Settings className="h-5 w-5" />, path: "/admin/settings" },
               ].map((item, index) => (
                 <li key={index}>

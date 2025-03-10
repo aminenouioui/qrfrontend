@@ -128,7 +128,7 @@ function Dashboard() {
                 color: "from-red-500 to-red-600",
                 path: "/admin/students", // Added path for navigation
               },
-              { name: "teachers", icon: <GraduationCap className="h-8 w-8" />, color: "from-green-500 to-green-600" },
+              { name: "teachers", icon: <GraduationCap className="h-8 w-8" />, color: "from-green-500 to-green-600", path: "/admin/teachers" },
               { name: "parents", icon: <User className="h-8 w-8" />, color: "from-pink-500 to-pink-600" },
               { name: "level", icon: <Book className="h-8 w-8" />, color: "from-blue-500 to-blue-600" , path: "/admin/level"},
               { name: "rooms", icon: <DoorClosed className="h-8 w-8" />, color: "from-amber-500 to-amber-600" , path: "/admin/rooms"},

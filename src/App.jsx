@@ -12,6 +12,7 @@ import Grades from './components/grades';
 import Level from './components/level';
 import Rooms from './components/rooms';
 import Subjects from './components/subjects';
+import TeacherList from './components/TeacherList';
 const App = () => {
   return (
     <Router>
@@ -31,8 +32,7 @@ const App = () => {
           <Route path="students" element={<Student_management />} />
           <Route path="students/list" element={<StudentListe />} />
           <Route path="level" element={<Level />} />
-          <Route path="rooms" element={<Rooms />} />
-          <Route path="subjects" element={<Subjects />} />
+          <Route path="teachers" element={<TeacherList />} />
         </Route>
       </Routes>
     </Router>

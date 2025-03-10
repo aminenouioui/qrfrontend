@@ -60,7 +60,7 @@ export default function Grades() {
     { id: "CHEM101", name: "General Chemistry", department: "Chemistry" },
   ]
 
-  // Mock grades data
+  
   const [gradesData, setGradesData] = useState({
     "001": {
       gpa: "3.8",

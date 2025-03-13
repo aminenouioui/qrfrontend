@@ -294,7 +294,7 @@ export default function Grades() {
   };
 
   if (loading) return <div className="min-h-screen bg-[#111827] text-white p-6">Loading...</div>;
-  if (error) return <div className="min-h-screen bg-[#111827] text-white p-6 text-red-400">{error}</div>;
+  if (error) return <div className="min-h-screen bg-[#111827] p-6 text-red-400">{error}</div>;
 
   return (
     <div className="min-h-screen bg-[#111827] text-white">

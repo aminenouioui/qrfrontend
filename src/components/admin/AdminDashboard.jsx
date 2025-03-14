@@ -1,6 +1,7 @@
 "use client";
-import { useState } from "react";
-import { Link } from "react-router-dom"; // Import Link for navigation
+import { useState, useEffect } from "react";
+import { Link } from "react-router-dom";
+import axios from "axios";
 import {
   Users,
   GraduationCap,
@@ -9,40 +10,79 @@ import {
   Bell,
   Menu,
   TrendingUp,
+  TrendingDown,
   User,
   Book,
-  File,
   Bookmark,
-  Medal,
-  CalendarCheck2,
   Settings,
   DoorClosed,
 } from "lucide-react";
 
 function Dashboard() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [stats, setStats] = useState({
+    students: { total: 0, increase: 0, icon: <Users className="h-6 w-6" />, color: "from-blue-500 to-blue-600" },
+    teachers: { total: 0, increase: 0, icon: <GraduationCap className="h-6 w-6" />, color: "from-green-500 to-green-600" },
+    rooms: { total: 0, increase: 0, icon: <School className="h-6 w-6" />, color: "from-purple-500 to-purple-600" },
+  });
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
 
-  // Sample statistics data
-  const stats = {
-    students: {
-      total: 1248,
-      increase: 12.5,
-      icon: <Users className="h-6 w-6" />,
-      color: "from-blue-500 to-blue-600",
-    },
-    teachers: {
-      total: 86,
-      increase: 8.3,
-      icon: <GraduationCap className="h-6 w-6" />,
-      color: "from-green-500 to-green-600",
-    },
-    rooms: {
-      total: 42,
-      increase: 5.7,
-      icon: <School className="h-6 w-6" />,
-      color: "from-purple-500 to-purple-600",
-    },
-  };
+  const BASE_URL = "http://localhost:8000"; // Adjust if your backend runs elsewhere
+
+  useEffect(() => {
+    const fetchStats = async () => {
+      try {
+        const response = await axios.get(`${BASE_URL}/api/dashboard-stats/`);
+        setStats({
+          students: {
+            total: response.data.students.total,
+            increase: response.data.students.increase,
+            icon: <Users className="h-6 w-6" />,
+            color: "from-blue-500 to-blue-600",
+          },
+          teachers: {
+            total: response.data.teachers.total,
+            increase: response.data.teachers.increase,
+            icon: <GraduationCap className="h-6 w-6" />,
+            color: "from-green-500 to-green-600",
+          },
+          rooms: {
+            total: response.data.rooms.total,
+            increase: response.data.rooms.increase,
+            icon: <School className="h-6 w-6" />,
+            color: "from-purple-500 to-purple-600",
+          },
+        });
+        setLoading(false);
+      } catch (err) {
+        setError(err.response?.data?.error || "Failed to load statistics");
+        setLoading(false);
+      }
+    };
+
+    fetchStats();
+  }, []);
+
+  if (loading) {
+    return (
+      <div className="flex-1 flex flex-col overflow-hidden bg-gradient-to-br from-slate-800 to-slate-900">
+        <div className="flex-1 flex items-center justify-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="flex-1 flex flex-col overflow-hidden bg-gradient-to-br from-slate-800 to-slate-900">
+        <div className="flex-1 flex items-center justify-center">
+          <div className="text-red-500">{error}</div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="flex-1 flex flex-col overflow-hidden">
@@ -97,9 +137,15 @@ function Dashboard() {
                   <div>
                     <p className="text-slate-400 capitalize">{key}</p>
                     <h3 className="text-3xl font-bold mt-1">{stat.total.toLocaleString()}</h3>
-                    <div className="flex items-center mt-2 text-green-400">
-                      <TrendingUp className="h-4 w-4 mr-1" />
-                      <span className="text-sm">{stat.increase}% increase</span>
+                    <div className={`flex items-center mt-2 ${stat.increase >= 0 ? "text-green-400" : "text-red-400"}`}>
+                      {stat.increase >= 0 ? (
+                        <TrendingUp className="h-4 w-4 mr-1" />
+                      ) : (
+                        <TrendingDown className="h-4 w-4 mr-1" />
+                      )}
+                      <span className="text-sm">
+                        {Math.abs(stat.increase)}% {stat.increase >= 0 ? "increase" : "decrease"}
+                      </span>
                     </div>
                   </div>
                   <div className={`rounded-lg bg-gradient-to-br ${stat.color} p-3 shadow-lg`}>{stat.icon}</div>
@@ -110,7 +156,7 @@ function Dashboard() {
                   <div
                     className={`h-full bg-gradient-to-r ${stat.color} rounded-full`}
                     style={{
-                      width: `${Math.min(100, stat.total / (key === "students" ? 15 : key === "teachers" ? 1 : 0.5))}%`,
+                      width: `${Math.min(100, stat.total / (key === "students" ? 1500 : key === "teachers" ? 100 : 50))}%`,
                     }}
                   ></div>
                 </div>
@@ -122,20 +168,18 @@ function Dashboard() {
           <h2 className="text-xl font-bold mb-4 text-slate-100">Quick Access</h2>
           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-6">
             {[
-              {
-                name: "students",
-                icon: <Users className="h-8 w-8" />,
-                color: "from-red-500 to-red-600",
-                path: "/admin/students", // Added path for navigation
-              },
+              { name: "students", icon: <Users className="h-8 w-8" />, color: "from-red-500 to-red-600", path: "/admin/students" },
               { name: "teachers", icon: <GraduationCap className="h-8 w-8" />, color: "from-green-500 to-green-600", path: "/admin/teachers" },
               { name: "parents", icon: <User className="h-8 w-8" />, color: "from-pink-500 to-pink-600" },
-              { name: "level", icon: <Book className="h-8 w-8" />, color: "from-blue-500 to-blue-600" , path: "/admin/level"},
-              { name: "rooms", icon: <DoorClosed className="h-8 w-8" />, color: "from-amber-500 to-amber-600" , path: "/admin/rooms"},
+              { name: "level", icon: <Book className="h-8 w-8" />, color: "from-blue-500 to-blue-600", path: "/admin/level" },
+              { name: "rooms", icon: <DoorClosed className="h-8 w-8" />, color: "from-amber-500 to-amber-600", path: "/admin/rooms" },
               { name: "subjects", icon: <Bookmark className="h-8 w-8" />, color: "from-violet-500 to-violet-600", path: "/admin/subjects" },
               { name: "settings", icon: <Settings className="h-8 w-8" />, color: "from-slate-500 to-slate-600" },
             ].map((item, index) => (
-              <div key={index} className="relative overflow-hidden rounded-xl bg-white/5 p-6 shadow-lg transition-all duration-300 hover:shadow-xl hover:-translate-y-1 hover:cursor-pointer">
+              <div
+                key={index}
+                className="relative overflow-hidden rounded-xl bg-white/5 p-6 shadow-lg transition-all duration-300 hover:shadow-xl hover:-translate-y-1 hover:cursor-pointer"
+              >
                 {item.path ? (
                   <Link to={item.path} className="block w-full h-full">
                     <div className="relative flex flex-col items-center">

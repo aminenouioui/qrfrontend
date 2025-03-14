@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react"
 import { useParams } from "react-router-dom"
+import axios from "axios"
 
 import {
   ArrowLeft,
@@ -25,30 +26,24 @@ import { OrbitControls, PerspectiveCamera, Environment, Html } from "@react-thre
 function StudentAvatar({ photo }) {
   return (
     <group position={[0, 0, 0]}>
-      {/* Photo Frame */}
       <mesh position={[0, 0, 0]} castShadow receiveShadow>
         <cylinderGeometry args={[2, 2, 0.1, 32]} />
         <meshStandardMaterial color="#1e293b" metalness={0.7} roughness={0.2} />
       </mesh>
-
-      {/* Photo */}
       <mesh position={[0, 0, 0.06]} rotation={[-Math.PI / 2, 0, 0]}>
         <circleGeometry args={[1.9, 32]} />
         <meshBasicMaterial color="#2a3a4f" />
       </mesh>
-
       <Html position={[0, 0, 0.07]} transform rotation={[-Math.PI / 2, 0, 0]}>
         <div className="w-[200px] h-[200px] rounded-full overflow-hidden">
           <img
-            src={photo || "/placeholder.svg?height=200&width=200"}
+            src={photo ? `http://localhost:8000${photo}` : "/placeholder.svg?height=200&width=200"}
             alt="Student"
             className="w-full h-full object-cover"
             crossOrigin="anonymous"
           />
         </div>
       </Html>
-
-      {/* Decorative ring */}
       <mesh position={[0, 0, 0.02]} castShadow>
         <torusGeometry args={[2.1, 0.05, 16, 100]} />
         <meshStandardMaterial color="#3b82f6" emissive="#3b82f6" emissiveIntensity={0.5} />
@@ -66,9 +61,7 @@ function StudentScene({ student }) {
       <spotLight position={[10, 10, 10]} angle={0.15} penumbra={1} intensity={0.8} castShadow />
       <pointLight position={[-10, -10, -10]} color="#3b82f6" intensity={0.5} />
       <Environment preset="night" />
-
       <StudentAvatar photo={student?.photo} />
-
       <OrbitControls
         enableZoom={false}
         enablePan={false}
@@ -96,105 +89,40 @@ function StudentQRCode({ studentId, studentName }) {
 
 // Student Details Component
 export default function StudentDetails() {
-  const { studentId } = useParams(); // Get studentId from URL
-
-  // Ensure studentId is valid
-  if (!studentId) {
-    console.error("Invalid student ID");
-    return null;
-  }
-
+  const { studentId } = useParams();
   const [student, setStudent] = useState(null);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState("overview");
 
   useEffect(() => {
-    // Simulate API call based on studentId
-    setTimeout(() => {
-      setStudent({
-        id: studentId || "001",
-        nom: "Dupont",
-        prenom: "Jean",
-        level: "L1",
-        photo: "/placeholder.svg?height=200&width=200",
-        email: "jean.dupont@university.edu",
-        phone: "+33 6 12 34 56 78",
-        birthdate: "15/05/2000",
-        address: "123 Rue de l'Université, 75006 Paris",
-        enrollmentDate: "01/09/2022",
-        major: "Computer Science",
-        gpa: "3.8/4.0",
-        attendance: "92%",
-        courses: [
-          {
-            id: "CS101",
-            name: "Introduction to Programming",
-            grade: "A",
-            schedule: "Monday, 10:00 - 12:00",
-            room: "A-101",
-          },
-          { id: "MATH201", name: "Linear Algebra", grade: "B+", schedule: "Tuesday, 14:00 - 16:00", room: "B-205" },
-          { id: "PHYS101", name: "Physics I", grade: "A-", schedule: "Wednesday, 08:00 - 10:00", room: "C-310" },
-          { id: "ENG103", name: "Technical Writing", grade: "B", schedule: "Thursday, 16:00 - 18:00", room: "D-102" },
-        ],
-        achievements: [
-          { id: 1, title: "Dean's List", date: "2022" },
-          { id: 2, title: "Programming Competition Winner", date: "2023" },
-        ],
-        activities: [
-          { id: 1, title: "Chess Club", role: "Member" },
-          { id: 2, title: "Student Council", role: "Representative" },
-        ],
-        attendance_records: [
-          { date: "2023-11-01", status: "present" },
-          { date: "2023-11-02", status: "present" },
-          { date: "2023-11-03", status: "absent" },
-          { date: "2023-11-06", status: "present" },
-          { date: "2023-11-07", status: "present" },
-          { date: "2023-11-08", status: "present" },
-          { date: "2023-11-09", status: "present" },
-          { date: "2023-11-10", status: "present" },
-          { date: "2023-11-13", status: "absent" },
-          { date: "2023-11-14", status: "present" },
-          { date: "2023-11-15", status: "present" },
-        ],
-        grades: [
-          { course: "CS101", assignment: "Midterm", score: 92, max_score: 100 },
-          { course: "CS101", assignment: "Final", score: 95, max_score: 100 },
-          { course: "MATH201", assignment: "Midterm", score: 87, max_score: 100 },
-          { course: "MATH201", assignment: "Final", score: 88, max_score: 100 },
-          { course: "PHYS101", assignment: "Midterm", score: 90, max_score: 100 },
-          { course: "PHYS101", assignment: "Final", score: 91, max_score: 100 },
-          { course: "ENG103", assignment: "Essay 1", score: 85, max_score: 100 },
-          { course: "ENG103", assignment: "Essay 2", score: 88, max_score: 100 },
-        ],
-        schedule: [
-          {
-            day: "Monday",
-            courses: [{ id: "CS101", name: "Introduction to Programming", time: "10:00 - 12:00", room: "A-101" }],
-          },
-          {
-            day: "Tuesday",
-            courses: [{ id: "MATH201", name: "Linear Algebra", time: "14:00 - 16:00", room: "B-205" }],
-          },
-          { day: "Wednesday", courses: [{ id: "PHYS101", name: "Physics I", time: "08:00 - 10:00", room: "C-310" }] },
-          {
-            day: "Thursday",
-            courses: [{ id: "ENG103", name: "Technical Writing", time: "16:00 - 18:00", room: "D-102" }],
-          },
-          { day: "Friday", courses: [] },
-        ],
-      })
-      setLoading(false)
-    }, 1000)
-  }, [studentId])
+    const fetchStudentData = async () => {
+      try {
+        const response = await axios.get(`http://localhost:8000/api/students/${studentId}/`);
+        setStudent(response.data);
+        setLoading(false);
+      } catch (error) {
+        console.error("Error fetching student data:", error);
+        setLoading(false);
+      }
+    };
+
+    fetchStudentData();
+  }, [studentId]);
 
   if (loading) {
     return (
       <div className="min-h-screen bg-[#111827] text-white flex items-center justify-center">
         <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
       </div>
-    )
+    );
+  }
+
+  if (!student) {
+    return (
+      <div className="min-h-screen bg-[#111827] text-white flex items-center justify-center">
+        <p>Student not found</p>
+      </div>
+    );
   }
 
   // Calculate attendance statistics
@@ -202,41 +130,14 @@ export default function StudentDetails() {
     total: student.attendance_records.length,
     present: student.attendance_records.filter((record) => record.status === "present").length,
     absent: student.attendance_records.filter((record) => record.status === "absent").length,
-  }
-  attendanceStats.percentage = Math.round((attendanceStats.present / attendanceStats.total) * 100)
+  };
+  attendanceStats.percentage = Math.round((attendanceStats.present / attendanceStats.total) * 100) || 0;
 
-  // Calculate GPA
-  const calculateGPA = (grades) => {
-    const gradePoints = {
-      A: 4.0,
-      "A-": 3.7,
-      "B+": 3.3,
-      B: 3.0,
-      "B-": 2.7,
-      "C+": 2.3,
-      C: 2.0,
-      "C-": 1.7,
-      "D+": 1.3,
-      D: 1.0,
-      F: 0.0,
-    }
+  // Calculate GPA (using backend-provided value)
+  const calculateGPA = () => student.gpa;
 
-    let totalPoints = 0
-    let totalCourses = 0
-
-    student.courses.forEach((course) => {
-      if (gradePoints[course.grade]) {
-        totalPoints += gradePoints[course.grade]
-        totalCourses++
-      }
-    })
-
-    return totalCourses > 0 ? (totalPoints / totalCourses).toFixed(2) : 0
-  }
-
-  return ( 
-    <div className="min-h-screen bg-[#111827] text-white"> 
-
+  return (
+    <div className="min-h-screen bg-[#111827] text-white">
       {/* Header */}
       <header className="bg-[#1e293b] p-4">
         <div className="container mx-auto">
@@ -256,7 +157,7 @@ export default function StudentDetails() {
           <div className="flex flex-col md:flex-row items-center gap-6">
             <div className="w-32 h-32 rounded-full overflow-hidden bg-[#0f172a] border-4 border-blue-500/30">
               <img
-                src={student.photo || "/placeholder.svg?height=200&width=200"}
+                src={student.photo ? `http://localhost:8000${student.photo}` : "/placeholder.svg?height=200&width=200"}
                 alt={`${student.prenom} ${student.nom}`}
                 className="w-full h-full object-cover"
               />
@@ -349,9 +250,7 @@ export default function StudentDetails() {
           {activeTab === "overview" && (
             <div>
               <h3 className="text-xl font-bold mb-6">Student Overview</h3>
-
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-                {/* Academic Stats */}
                 <div className="bg-[#0f172a] rounded-xl p-5">
                   <div className="flex items-center gap-3 mb-4">
                     <div className="bg-blue-500/20 p-2 rounded-full">
@@ -359,7 +258,6 @@ export default function StudentDetails() {
                     </div>
                     <h4 className="font-medium">Academic Information</h4>
                   </div>
-
                   <div className="space-y-4">
                     <div className="flex justify-between">
                       <span className="text-gray-400">Major</span>
@@ -367,7 +265,7 @@ export default function StudentDetails() {
                     </div>
                     <div className="flex justify-between">
                       <span className="text-gray-400">GPA</span>
-                      <span className="font-medium text-green-400">{calculateGPA(student.grades)}</span>
+                      <span className="font-medium text-green-400">{calculateGPA()}</span>
                     </div>
                     <div className="flex justify-between">
                       <span className="text-gray-400">Attendance</span>
@@ -375,8 +273,6 @@ export default function StudentDetails() {
                     </div>
                   </div>
                 </div>
-
-                {/* Attendance Stats */}
                 <div className="bg-[#0f172a] rounded-xl p-5">
                   <div className="flex items-center gap-3 mb-4">
                     <div className="bg-green-500/20 p-2 rounded-full">
@@ -384,7 +280,6 @@ export default function StudentDetails() {
                     </div>
                     <h4 className="font-medium">Attendance Summary</h4>
                   </div>
-
                   <div className="space-y-4">
                     <div className="flex justify-between">
                       <span className="text-gray-400">Present Days</span>
@@ -400,8 +295,6 @@ export default function StudentDetails() {
                     </div>
                   </div>
                 </div>
-
-                {/* Enrollment Info */}
                 <div className="bg-[#0f172a] rounded-xl p-5">
                   <div className="flex items-center gap-3 mb-4">
                     <div className="bg-purple-500/20 p-2 rounded-full">
@@ -409,7 +302,6 @@ export default function StudentDetails() {
                     </div>
                     <h4 className="font-medium">Enrollment Details</h4>
                   </div>
-
                   <div className="space-y-4">
                     <div className="flex justify-between">
                       <span className="text-gray-400">Enrollment Date</span>
@@ -426,8 +318,6 @@ export default function StudentDetails() {
                   </div>
                 </div>
               </div>
-
-              {/* Course Summary */}
               <div className="bg-[#0f172a] rounded-xl p-5 mb-6">
                 <div className="flex items-center gap-3 mb-4">
                   <div className="bg-blue-500/20 p-2 rounded-full">
@@ -435,7 +325,6 @@ export default function StudentDetails() {
                   </div>
                   <h4 className="font-medium">Enrolled Courses</h4>
                 </div>
-
                 <div className="overflow-hidden rounded-lg border border-gray-800">
                   <table className="w-full">
                     <thead className="bg-[#172033]">
@@ -467,10 +356,10 @@ export default function StudentDetails() {
                                 course.grade.startsWith("A")
                                   ? "bg-green-500/20 text-green-400"
                                   : course.grade.startsWith("B")
-                                    ? "bg-blue-500/20 text-blue-400"
-                                    : course.grade.startsWith("C")
-                                      ? "bg-yellow-500/20 text-yellow-400"
-                                      : "bg-red-500/20 text-red-400"
+                                  ? "bg-blue-500/20 text-blue-400"
+                                  : course.grade.startsWith("C")
+                                  ? "bg-yellow-500/20 text-yellow-400"
+                                  : "bg-red-500/20 text-red-400"
                               }`}
                             >
                               {course.grade}
@@ -484,8 +373,6 @@ export default function StudentDetails() {
                   </table>
                 </div>
               </div>
-
-              {/* Quick Actions */}
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <button className="bg-[#0f172a] hover:bg-[#172033] rounded-xl p-4 flex items-center gap-3 transition-colors">
                   <div className="bg-blue-500/20 p-2 rounded-full">
@@ -513,32 +400,26 @@ export default function StudentDetails() {
           {activeTab === "attendance" && (
             <div>
               <h3 className="text-xl font-bold mb-6">Attendance Records</h3>
-
               <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-6">
                 <div className="bg-[#0f172a] rounded-xl p-5 flex flex-col items-center justify-center">
                   <div className="text-4xl font-bold text-blue-400">{attendanceStats.percentage}%</div>
                   <div className="text-sm text-gray-400 mt-2">Attendance Rate</div>
                 </div>
-
                 <div className="bg-[#0f172a] rounded-xl p-5 flex flex-col items-center justify-center">
                   <div className="text-4xl font-bold text-green-400">{attendanceStats.present}</div>
                   <div className="text-sm text-gray-400 mt-2">Present Days</div>
                 </div>
-
                 <div className="bg-[#0f172a] rounded-xl p-5 flex flex-col items-center justify-center">
                   <div className="text-4xl font-bold text-red-400">{attendanceStats.absent}</div>
                   <div className="text-sm text-gray-400 mt-2">Absent Days</div>
                 </div>
-
                 <div className="bg-[#0f172a] rounded-xl p-5 flex flex-col items-center justify-center">
                   <div className="text-4xl font-bold">{attendanceStats.total}</div>
                   <div className="text-sm text-gray-400 mt-2">Total Days</div>
                 </div>
               </div>
-
               <div className="bg-[#0f172a] rounded-xl p-5">
                 <h4 className="font-medium mb-4">Attendance Calendar</h4>
-
                 <div className="grid grid-cols-7 gap-2 mb-2">
                   {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((day) => (
                     <div key={day} className="text-center text-sm text-gray-400 py-2">
@@ -546,12 +427,10 @@ export default function StudentDetails() {
                     </div>
                   ))}
                 </div>
-
                 <div className="grid grid-cols-7 gap-2">
-                  {student.attendance_records.map((record, index) => {
-                    const date = new Date(record.date)
-                    const day = date.getDate()
-
+                  {student.attendance_records.map((record) => {
+                    const date = new Date(record.date);
+                    const day = date.getDate();
                     return (
                       <div
                         key={record.date}
@@ -570,7 +449,7 @@ export default function StudentDetails() {
                           )}
                         </div>
                       </div>
-                    )
+                    );
                   })}
                 </div>
               </div>
@@ -581,29 +460,24 @@ export default function StudentDetails() {
           {activeTab === "grades" && (
             <div>
               <h3 className="text-xl font-bold mb-6">Academic Grades</h3>
-
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
                 <div className="bg-[#0f172a] rounded-xl p-5 flex flex-col items-center justify-center">
-                  <div className="text-4xl font-bold text-blue-400">{calculateGPA(student.grades)}</div>
+                  <div className="text-4xl font-bold text-blue-400">{calculateGPA()}</div>
                   <div className="text-sm text-gray-400 mt-2">Current GPA</div>
                 </div>
-
                 <div className="bg-[#0f172a] rounded-xl p-5 flex flex-col items-center justify-center">
                   <div className="text-4xl font-bold text-green-400">
                     {student.courses.filter((c) => c.grade.startsWith("A")).length}
                   </div>
                   <div className="text-sm text-gray-400 mt-2">A Grades</div>
                 </div>
-
                 <div className="bg-[#0f172a] rounded-xl p-5 flex flex-col items-center justify-center">
                   <div className="text-4xl font-bold text-yellow-400">{student.courses.length}</div>
                   <div className="text-sm text-gray-400 mt-2">Total Courses</div>
                 </div>
               </div>
-
               <div className="bg-[#0f172a] rounded-xl p-5 mb-6">
                 <h4 className="font-medium mb-4">Course Grades</h4>
-
                 <div className="overflow-hidden rounded-lg border border-gray-800">
                   <table className="w-full">
                     <thead className="bg-[#172033]">
@@ -638,19 +512,19 @@ export default function StudentDetails() {
                                 grade.score / grade.max_score >= 0.9
                                   ? "bg-green-500/20 text-green-400"
                                   : grade.score / grade.max_score >= 0.8
-                                    ? "bg-blue-500/20 text-blue-400"
-                                    : grade.score / grade.max_score >= 0.7
-                                      ? "bg-yellow-500/20 text-yellow-400"
-                                      : "bg-red-500/20 text-red-400"
+                                  ? "bg-blue-500/20 text-blue-400"
+                                  : grade.score / grade.max_score >= 0.7
+                                  ? "bg-yellow-500/20 text-yellow-400"
+                                  : "bg-red-500/20 text-red-400"
                               }`}
                             >
                               {grade.score / grade.max_score >= 0.9
                                 ? "A"
                                 : grade.score / grade.max_score >= 0.8
-                                  ? "B"
-                                  : grade.score / grade.max_score >= 0.7
-                                    ? "C"
-                                    : "D"}
+                                ? "B"
+                                : grade.score / grade.max_score >= 0.7
+                                ? "C"
+                                : "D"}
                             </span>
                           </td>
                         </tr>
@@ -659,15 +533,12 @@ export default function StudentDetails() {
                   </table>
                 </div>
               </div>
-
               <div className="bg-[#0f172a] rounded-xl p-5">
                 <h4 className="font-medium mb-4">Grade Distribution</h4>
-
                 <div className="h-48 flex items-end gap-4 mb-4">
                   {["A", "B", "C", "D", "F"].map((grade) => {
-                    const count = student.courses.filter((c) => c.grade.startsWith(grade)).length
-                    const height = count > 0 ? `${(count / student.courses.length) * 100}%` : "5%"
-
+                    const count = student.courses.filter((c) => c.grade.startsWith(grade)).length;
+                    const height = count > 0 ? `${(count / student.courses.length) * 100}%` : "5%";
                     return (
                       <div key={grade} className="flex-1 flex flex-col items-center">
                         <div
@@ -675,19 +546,19 @@ export default function StudentDetails() {
                             grade === "A"
                               ? "bg-green-500/70"
                               : grade === "B"
-                                ? "bg-blue-500/70"
-                                : grade === "C"
-                                  ? "bg-yellow-500/70"
-                                  : grade === "D"
-                                    ? "bg-orange-500/70"
-                                    : "bg-red-500/70"
+                              ? "bg-blue-500/70"
+                              : grade === "C"
+                              ? "bg-yellow-500/70"
+                              : grade === "D"
+                              ? "bg-orange-500/70"
+                              : "bg-red-500/70"
                           }`}
                           style={{ height }}
                         ></div>
                         <div className="text-sm mt-2">{grade}</div>
                         <div className="text-xs text-gray-400">{count} courses</div>
                       </div>
-                    )
+                    );
                   })}
                 </div>
               </div>
@@ -698,10 +569,8 @@ export default function StudentDetails() {
           {activeTab === "schedule" && (
             <div>
               <h3 className="text-xl font-bold mb-6">Weekly Schedule</h3>
-
               <div className="bg-[#0f172a] rounded-xl p-5">
                 <div className="grid grid-cols-6 gap-2">
-                  {/* Time column */}
                   <div className="col-span-1">
                     <div className="h-12 flex items-center justify-center font-medium bg-[#172033] rounded-t-lg">
                       Time
@@ -712,223 +581,22 @@ export default function StudentDetails() {
                       </div>
                     ))}
                   </div>
-
-                  {/* Day columns */}
                   {["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"].map((day) => {
-                    const daySchedule = student.schedule.find((s) => s.day === day)
-
+                    const daySchedule = student.schedule.find((s) => s.day === day) || { courses: [] };
                     return (
                       <div key={day} className="col-span-1">
                         <div className="h-12 flex items-center justify-center font-medium bg-[#172033] rounded-t-lg">
                           {day}
                         </div>
-
                         {["08:00", "10:00", "12:00", "14:00", "16:00"].map((time) => {
-                          const course = daySchedule?.courses.find((c) => c.time.startsWith(time))
-
+                          const course = daySchedule.courses.find((c) => c.time.startsWith(time));
                           return (
                             <div
                               key={`${day}-${time}`}
                               className={`h-24 p-2 border border-gray-800 ${course ? "bg-blue-500/10 border-blue-500/30" : "bg-[#172033]"}`}
                             >
                               {course && (
-                <div className="h-full rounded-lg p-2"> 
-                <div className="h-full rounded-lg p-2"> 
-                <div className="h-full rounded-lg p-2"> 
-                <div className="h-full rounded-lg p-2"> 
-                <div className="h-full rounded-lg p-2"> 
-                <div className="h-full rounded-lg p-2"> 
-                <div className="h-full rounded-lg p-2"> 
-                <div className="h-full rounded-lg p-2"> 
-                <div className="h-full rounded-lg p-2"> 
-                <div className="h-full rounded-lg p-2"> 
-                <div className="h-full rounded-lg p-2"> 
-                <div className="h-full rounded-lg p-2"> 
-                <div className="h-full rounded-lg p-2"> 
-                <div className="h-full rounded-lg p-2"> 
-                <div className="h-full rounded-lg p-2"> 
-                <div className="h-full rounded-lg p-2"> 
-                <div className="h-full rounded-lg p-2"> 
-                <div className="h-full rounded-lg p-2"> 
-                <div className="h-full rounded-lg p-2"> 
-                <div className="h-full rounded-lg p-2"> 
-                <div className="h-full rounded-lg p-2"> 
-                <div className="h-full rounded-lg p-2"> 
-                <div className="h-full rounded-lg p-2"> 
-                <div className="h-full rounded-lg p-2"> 
-                <div className="h-full rounded-lg p-2"> 
-                <div className="h-full rounded-lg p-2"> 
-                <div className="h-full rounded-lg p-2"> 
-                <div className="h-full rounded-lg p-2"> 
-                <div className="h-full rounded-lg p-2"> 
-                <div className="h-full rounded-lg p-2"> 
-                <div className="h-full rounded-lg p-2"> 
-                <div className="h-full rounded-lg p-2"> 
-                <div className="h-full rounded-lg p-2"> 
-                <div className="h-full rounded-lg p-2"> 
-                <div className="h-full rounded-lg p-2"> 
-                <div className="h-full rounded-lg p-2"> 
-                <div className="h-full rounded-lg p-2"> 
-                <div className="h-full rounded-lg p-2"> 
-                <div className="h-full rounded-lg p-2"> 
-                <div className="h-full rounded-lg p-2"> 
-                <div className="h-full rounded-lg p-2"> 
-                <div className="h-full rounded-lg p-2"> 
-                <div className="h-full rounded-lg p-2"> 
-                <div className="h-full rounded-lg p-2"> 
-                <div className="h-full rounded-lg p-2"> 
-                <div className="h-full rounded-lg p-2"> 
-                <div className="h-full rounded-lg p-2"> 
-                <div className="h-full rounded-lg p-2"> 
-                <div className="h-full rounded-lg p-2"> 
-                <div className="h-full rounded-lg p-2"> 
-                <div className="h-full rounded-lg p-2"> 
-                <div className="h-full rounded-lg p-2"> 
-                <div className="h-full rounded-lg p-2"> 
-                <div className="h-full rounded-lg p-2"> 
-                <div className="h-full rounded-lg p-2"> 
-                <div className="h-full rounded-lg p-2"> 
-                <div className="h-full rounded-lg p-2"> 
-                <div className="h-full rounded-lg p-2"> 
-                <div className="h-full rounded-lg p-2"> 
-                <div className="h-full rounded-lg p-2"> 
-                <div className="h-full rounded-lg p-2"> 
-                <div className="h-full rounded-lg p-2"> 
-                <div className="h-full rounded-lg p-2"> 
-                <div className="h-full rounded-lg p-2"> 
-                <div className="h-full rounded-lg p-2"> 
-                <div className="h-full rounded-lg p-2"> 
-                <div className="h-full rounded-lg p-2"> 
-                <div className="h-full rounded-lg p-2"> 
-                <div className="h-full rounded-lg p-2"> 
-                <div className="h-full rounded-lg p-2"> 
-                <div className="h-full rounded-lg p-2"> 
-                <div className="h-full rounded-lg p-2"> 
-                <div className="h-full rounded-lg p-2"> 
-                <div className="h-full rounded-lg p-2"> 
-                <div className="h-full rounded-lg p-2"> 
-                <div className="h-full rounded-lg p-2"> 
-                <div className="h-full rounded-lg p-2"> 
-                <div className="h-full rounded-lg p-2"> 
-                <div className="h-full rounded-lg p-2"> 
-                <div className="h-full rounded-lg p-2"> 
-                <div className="h-full rounded-lg p-2"> 
-                <div className="h-full rounded-lg p-2"> 
-                <div className="h-full rounded-lg p-2"> 
-                <div className="h-full rounded-lg p-2"> 
-                <div className="h-full rounded-lg p-2"> 
-                <div className="h-full rounded-lg p-2"> 
-                <div className="h-full rounded-lg p-2"> 
-                <div className="h-full rounded-lg p-2"> 
-                <div className="h-full rounded-lg p-2"> 
-                <div className="h-full rounded-lg p-2"> 
-                <div className="h-full rounded-lg p-2"> 
-                <div className="h-full rounded-lg p-2"> 
-                <div className="h-full rounded-lg p-2"> 
-                <div className="h-full rounded-lg p-2"> 
-                <div className="h-full rounded-lg p-2"> 
-                <div className="h-full rounded-lg p-2"> 
-                <div className="h-full rounded-lg p-2"> 
-                <div className="h-full rounded-lg p-2"> 
-                <div className="h-full rounded-lg p-2"> 
-                <div className="h-full rounded-lg p-2"> 
-                <div className="h-full rounded-lg p-2"> 
-                <div className="h-full rounded-lg p-2"> 
-                <div className="h-full rounded-lg p-2"> 
-                <div className="h-full rounded-lg p-2"> 
-                <div className="h-full rounded-lg p-2"> 
-                <div className="h-full rounded-lg p-2"> 
-                <div className="h-full rounded-lg p-2"> 
-                <div className="h-full rounded-lg p-2"> 
-                <div className="h-full rounded-lg p-2"> 
-                <div className="h-full rounded-lg p-2"> 
-                <div className="h-full rounded-lg p-2"> 
-                <div className="h-full rounded-lg p-2"> 
-                <div className="h-full rounded-lg p-2"> 
-                <div className="h-full rounded-lg p-2"> 
-                <div className="h-full rounded-lg p-2"> 
-                <div className="h-full rounded-lg p-2"> 
-                <div className="h-full rounded-lg p-2"> 
-                <div className="h-full rounded-lg p-2"> 
-                <div className="h-full rounded-lg p-2"> 
-                <div className="h-full rounded-lg p-2"> 
-                <div className="h-full rounded-lg p-2"> 
-                <div className="h-full rounded-lg p-2"> 
-                <div className="h-full rounded-lg p-2"> 
-                <div className="h-full rounded-lg p-2"> 
-                <div className="h-full rounded-lg p-2"> 
-                <div className="h-full rounded-lg p-2"> 
-                <div className="h-full rounded-lg p-2"> 
-                <div className="h-full rounded-lg p-2"> 
-                <div className="h-full rounded-lg p-2"> 
-                <div className="h-full rounded-lg p-2"> 
-                <div className="h-full rounded-lg p-2"> 
-                <div className="h-full rounded-lg p-2"> 
-                <div className="h-full rounded-lg p-2"> 
-                <div className="h-full rounded-lg p-2"> 
-                <div className="h-full rounded-lg p-2"> 
-                <div className="h-full rounded-lg p-2"> 
-                <div className="h-full rounded-lg p-2"> 
-                <div className="h-full rounded-lg p-2"> 
-                <div className="h-full rounded-lg p-2"> 
-                <div className="h-full rounded-lg p-2"> 
-                <div className="h-full rounded-lg p-2"> 
-                <div className="h-full rounded-lg p-2"> 
-                <div className="h-full rounded-lg p-2"> 
-                <div className="h-full rounded-lg p-2"> 
-                <div className="h-full rounded-lg p-2"> 
-                <div className="h-full rounded-lg p-2"> 
-                <div className="h-full rounded-lg p-2"> 
-                <div className="h-full rounded-lg p-2"> 
-                <div className="h-full rounded-lg p-2"> 
-                <div className="h-full rounded-lg p-2"> 
-                <div className="h-full rounded-lg p-2"> 
-                <div className="h-full rounded-lg p-2"> 
-                <div className="h-full rounded-lg p-2"> 
-                <div className="h-full rounded-lg p-2"> 
-                <div className="h-full rounded-lg p-2"> 
-                <div className="h-full rounded-lg p-2"> 
-                <div className="h-full rounded-lg p-2"> 
-                <div className="h-full rounded-lg p-2"> 
-                <div className="h-full rounded-lg p-2"> 
-                <div className="h-full rounded-lg p-2"> 
-                <div className="h-full rounded-lg p-2"> 
-                <div className="h-full rounded-lg p-2"> 
-                <div className="h-full rounded-lg p-2"> 
-                <div className="h-full rounded-lg p-2"> 
-                <div className="h-full rounded-lg p-2"> 
-                <div className="h-full rounded-lg p-2"> 
-                <div className="h-full rounded-lg p-2"> 
-                <div className="h-full rounded-lg p-2"> 
-                <div className="h-full rounded-lg p-2"> 
-                <div className="h-full rounded-lg p-2"> 
-                <div className="h-full rounded-lg p-2"> 
-                <div className="h-full rounded-lg p-2"> 
-                <div className="h-full rounded-lg p-2"> 
-                <div className="h-full rounded-lg p-2"> 
-                <div className="h-full rounded-lg p-2"> 
-                <div className="h-full rounded-lg p-2"> 
-                <div className="h-full rounded-lg p-2"> 
-                <div className="h-full rounded-lg p-2"> 
-                <div className="h-full rounded-lg p-2"> 
-                <div className="h-full rounded-lg p-2"> 
-                <div className="h-full rounded-lg p-2"> 
-                <div className="h-full rounded-lg p-2"> 
-                <div className="h-full rounded-lg p-2"> 
-                <div className="h-full rounded-lg p-2"> 
-                <div className="h-full rounded-lg p-2"> 
-                <div className="h-full rounded-lg p-2"> 
-                <div className="h-full rounded-lg p-2"> 
-                <div className="h-full rounded-lg p-2"> 
-                <div className="h-full rounded-lg p-2"> 
-                <div className="h-full rounded-lg p-2"> 
-                <div className="h-full rounded-lg p-2"> 
-                <div className="h-full rounded-lg p-2"> 
-                <div className="h-full rounded-lg p-2"> 
-                <div className="h-full rounded-lg p-2"> 
-                <div className="h-full rounded-lg p-2"> 
-                <div className="h-full rounded-lg p-2"> 
-
+                                <div className="h-full rounded-lg p-2">
                                   <div className="font-medium text-sm">{course.name}</div>
                                   <div className="text-xs text-gray-400 mt-1">{course.id}</div>
                                   <div className="flex items-center gap-1 mt-2 text-xs text-blue-400">
@@ -937,10 +605,10 @@ export default function StudentDetails() {
                                 </div>
                               )}
                             </div>
-                          )
+                          );
                         })}
                       </div>
-                    )
+                    );
                   })}
                 </div>
               </div>
@@ -951,30 +619,27 @@ export default function StudentDetails() {
           {activeTab === "achievements" && (
             <div>
               <h3 className="text-xl font-bold mb-6">Student Achievements</h3>
-
               <div className="space-y-4">
-                {student.achievements.map((achievement) => (
-                  <div key={achievement.id} className="bg-[#0f172a] rounded-xl p-5 flex items-start gap-4">
-                    <div className="bg-yellow-500/20 p-3 rounded-full">
-                      <Award className="h-6 w-6 text-yellow-400" />
+                {student.achievements.length > 0 ? (
+                  student.achievements.map((achievement) => (
+                    <div key={achievement.id} className="bg-[#0f172a] rounded-xl p-5 flex items-start gap-4">
+                      <div className="bg-yellow-500/20 p-3 rounded-full">
+                        <Award className="h-6 w-6 text-yellow-400" />
+                      </div>
+                      <div>
+                        <h4 className="font-medium text-lg">{achievement.title}</h4>
+                        <p className="text-gray-400 text-sm mt-1">Awarded in {achievement.date}</p>
+                      </div>
                     </div>
-                    <div>
-                      <h4 className="font-medium text-lg">{achievement.title}</h4>
-                      <p className="text-gray-400 text-sm mt-1">Awarded in {achievement.date}</p>
-                      <p className="mt-2 text-sm">
-                        Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut
-                        labore et dolore magna aliqua.
-                      </p>
-                    </div>
-                  </div>
-                ))}
-
-                <button className="w-full mt-4 py-3 border border-dashed border-gray-700 rounded-xl text-gray-400 hover:text-white hover:border-gray-500 transition-colors">
-                  + Add New Achievement
-                </button>
+                  ))
+                ) : (
+                  <p className="text-gray-400">No achievements recorded.</p>
+                )}
               </div>
             </div>
           )}
         </div>
       </main>
     </div>
+  );
+}

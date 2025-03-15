@@ -1,10 +1,20 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import axios from "axios";
+import api from "../api"; // Ensure this path is correct
 import {
-  ArrowLeft, Calendar, Clock, MapPin, ChevronLeft, ChevronRight,
-  Plus, Edit, Trash2, X, Save, AlertCircle
+  ArrowLeft,
+  Calendar,
+  Clock,
+  MapPin,
+  ChevronLeft,
+  ChevronRight,
+  Plus,
+  Edit,
+  Trash2,
+  X,
+  Save,
+  AlertCircle,
 } from "lucide-react";
 
 export default function ClassSchedule() {
@@ -16,7 +26,6 @@ export default function ClassSchedule() {
   const [error, setError] = useState(null);
 
   const [formData, setFormData] = useState({
-    id: "",
     subject: "",
     day: "MON",
     start_time: "08:00",
@@ -37,17 +46,14 @@ export default function ClassSchedule() {
   const weekdays = ["MON", "TUE", "WED", "THU", "FRI"];
   const timeSlots = ["08:00", "10:00", "12:00", "14:00", "16:00"];
 
-  const API_BASE_URL = "http://localhost:8000";
-
-  // Fetch initial data (subjects, teachers, levels, classrooms)
   useEffect(() => {
     const fetchData = async () => {
       try {
         const [subjectsRes, teachersRes, levelsRes, classroomsRes] = await Promise.all([
-          axios.get(`${API_BASE_URL}/subjects/`),
-          axios.get(`${API_BASE_URL}/list_teacher/`),
-          axios.get(`${API_BASE_URL}/levels/`),
-          axios.get(`${API_BASE_URL}/classe-list/`)
+          api.get("/api/subjects/list/"), // Matches teacher_qr
+          api.get("/api/teachers/list/"), // Matches teacher_qr
+          api.get("/api/levels/list/"),   // Matches student_qr
+          api.get("/api/classes/list/"),  // Matches teacher_qr
         ]);
         setSubjects(subjectsRes.data);
         setTeachers(teachersRes.data);
@@ -56,77 +62,77 @@ export default function ClassSchedule() {
         setError(null);
       } catch (error) {
         console.error("Fetch error:", error.response ? error.response.data : error.message);
-        setError(`Failed to load data: ${error.response ? error.response.statusText : error.message}`);
+        setError(
+          `Failed to load data: ${
+            error.response ? error.response.statusText : error.message
+          }`
+        );
       }
     };
     fetchData();
   }, []);
 
-  // Fetch schedules for the selected level
   const fetchSchedulesByLevel = async (levelId) => {
     try {
-      const response = await axios.get(`${API_BASE_URL}/api/schedules/level/${levelId}/`);
-      console.log("Fetched Schedules Response:", response.data); // Debug the full response
+      const response = await api.get(`/api/schedules/level/${levelId}/`); // Matches student_qr
+      console.log("Fetched schedules:", response.data); // Debug log
       setSchedules(response.data);
       setError(null);
     } catch (error) {
-      console.error("Fetch error:", error.response ? error.response.data : error.message);
-      setError(`Failed to load schedules: ${error.response ? error.response.statusText : error.message}`);
+      console.error("Fetch schedules error:", error.response ? error.response.data : error.message);
+      setError(
+        `Failed to load schedules: ${
+          error.response ? error.response.statusText : error.message
+        }`
+      );
     }
   };
 
-  // Re-fetch schedules when selectedLevel changes
   useEffect(() => {
     if (selectedLevel) {
-      console.log("Selected Level:", selectedLevel);
       fetchSchedulesByLevel(selectedLevel.id);
     } else {
       setSchedules([]);
-      console.log("No level selected, clearing schedules");
     }
   }, [selectedLevel]);
 
-  // Log schedules state for debugging
-  useEffect(() => {
-    console.log("Schedules State:", schedules);
-  }, [schedules]);
-
-  // Handle level selection
   const handleLevelClick = (level) => {
-    console.log("Selected Level:", level);
     setSelectedLevel(level);
   };
 
-  // Utility functions to get details by ID
-  const getSubject = (subjectId) => subjects.find((s) => s.id === subjectId) || { id: "", nom: "Unknown Subject" };
-  const getTeacher = (teacherId) => teachers.find((t) => t.id === teacherId) || { id: "", nom: "Unknown", prenom: "" };
-  const getLevel = (levelId) => levels.find((l) => l.id === levelId) || { id: "", level: "Unknown Level" };
-  const getClasse = (classeId) => classrooms.find((c) => c.id === classeId) || { id: "", name: "Unknown Classroom" };
+  const getSubject = (subjectId) =>
+    subjects.find((s) => s.id === subjectId) || { id: "", nom: "Unknown Subject" };
+  const getTeacher = (teacherId) =>
+    teachers.find((t) => t.id === teacherId) || { id: "", nom: "Unknown", prenom: "" };
+  const getLevel = (levelId) =>
+    levels.find((l) => l.id === levelId) || { id: "", level: "Unknown Level" };
+  const getClasse = (classeId) =>
+    classrooms.find((c) => c.id === classeId) || { id: "", name: "Unknown Classroom" };
 
-  // Get the class for a specific day and time slot
-  const getClassForSlot = (day, time) => {
-    const classItem = schedules.find((c) => c.day === day && c.start_time === time);
-    console.log("Checking slot:", { day, time, classItem }); // Debug slot matching
-    return classItem;
+  const normalizeTime = (time) => {
+    if (!time) return time;
+    const [hours, minutes] = time.split(":");
+    return `${hours.padStart(2, "0")}:${minutes.padStart(2, "0")}`;
   };
 
-  // Handle input changes in the form
+  const getClassForSlot = (day, time) => {
+    return schedules.find((c) => c.day === day && normalizeTime(c.start_time) === time);
+  };
+
   const handleInputChange = (e) => {
     const { name, value } = e.target;
     setFormData({
       ...formData,
-      [name]: name === "Teacher" || name === "subject" || name === "level" || name === "classe" ? Number(value) || "" : value,
+      [name]: ["Teacher", "subject", "level", "classe"].includes(name) ? Number(value) || "" : value,
     });
   };
 
-  // Handle adding a new class
   const handleAddClass = (day, time) => {
     if (!selectedLevel) {
       setError("Please select a level before adding a class.");
       return;
     }
     setFormData({
-      id: "",
       subject: subjects[0]?.id || "",
       day: day,
       start_time: time,
@@ -140,14 +146,13 @@ export default function ClassSchedule() {
     setSelectedClass(null);
   };
 
-  // Handle editing a class
   const handleEditClass = (classItem) => {
     setFormData({
       id: classItem.id,
       subject: classItem.subject,
       day: classItem.day,
-      start_time: classItem.start_time,
-      end_time: classItem.end_time,
+      start_time: normalizeTime(classItem.start_time),
+      end_time: normalizeTime(classItem.end_time),
       Teacher: classItem.Teacher,
       classe: classItem.classe,
       level: classItem.level,
@@ -157,64 +162,76 @@ export default function ClassSchedule() {
     setSelectedClass(classItem);
   };
 
-  // Calculate end time based on start time
   const getEndTime = (startTime) => {
     const [hours, minutes] = startTime.split(":").map(Number);
     const endHours = hours + 2;
     return `${endHours.toString().padStart(2, "0")}:${minutes.toString().padStart(2, "0")}`;
   };
 
-  // Save a new class
   const handleSaveNewClass = async () => {
     if (!selectedLevel) {
       setError("Please select a level before saving a class.");
       return;
     }
     try {
-      const response = await axios.post(`${API_BASE_URL}/api/schedules/create/`, formData);
-      console.log("Save Response:", response.data);
+      const response = await api.post("/api/schedules/create/", formData); // Matches student_qr
+      console.log("New schedule added:", response.data); // Debug log
+      // Optimistically update schedules state
+      setSchedules((prev) => [...prev, response.data]);
+      // Refresh to ensure consistency
       await fetchSchedulesByLevel(selectedLevel.id);
       setIsAddingClass(false);
       resetForm();
+      setError(null);
     } catch (error) {
       console.error("Save error:", error.response ? error.response.data : error.message);
-      setError(`Failed to save: ${error.response ? error.response.data.detail || error.response.statusText : error.message}`);
+      setError(
+        `Failed to save: ${
+          error.response ? error.response.data.detail || JSON.stringify(error.response.data) : error.message
+        }`
+      );
     }
   };
 
-  // Update an existing class
   const handleUpdateClass = async () => {
     try {
-      const response = await axios.put(`${API_BASE_URL}/api/schedules/${formData.id}/update/`, formData);
-      setSchedules(schedules.map((c) => (c.id === formData.id ? response.data : c)));
+      const response = await api.put(`/api/schedules/${formData.id}/update/`, formData); // Matches student_qr
+      setSchedules((prev) => prev.map((c) => (c.id === formData.id ? response.data : c)));
       setIsEditingClass(false);
       setSelectedClass(response.data);
+      setError(null);
     } catch (error) {
       console.error("Update error:", error.response ? error.response.data : error.message);
-      setError(`Failed to update: ${error.response ? error.response.data.detail || error.response.statusText : error.message}`);
+      setError(
+        `Failed to update: ${
+          error.response ? error.response.data.detail || JSON.stringify(error.response.data) : error.message
+        }`
+      );
     }
   };
 
-  // Delete a class
   const handleDeleteClass = async () => {
     try {
-      await axios.delete(`${API_BASE_URL}/api/schedules/${selectedClass.id}/delete/`);
-      setSchedules(schedules.filter((c) => c.id !== selectedClass.id));
+      await api.delete(`/api/schedules/${selectedClass.id}/delete/`); // Matches student_qr
+      setSchedules((prev) => prev.filter((c) => c.id !== selectedClass.id));
       setShowDeleteConfirm(false);
       setSelectedClass(null);
+      setError(null);
     } catch (error) {
       console.error("Delete error:", error.response ? error.response.data : error.message);
-      setError(`Failed to delete: ${error.response ? error.response.data.detail || error.response.statusText : error.message}`);
+      setError(
+        `Failed to delete: ${
+          error.response ? error.response.data.detail || JSON.stringify(error.response.data) : error.message
+        }`
+      );
     }
   };
 
-  // Handle delete confirmation
   const handleDeleteClick = (classItem) => {
     setSelectedClass(classItem);
     setShowDeleteConfirm(true);
   };
 
-  // Cancel form (add/edit)
   const handleCancelForm = () => {
     setIsAddingClass(false);
     setIsEditingClass(false);
@@ -222,10 +239,8 @@ export default function ClassSchedule() {
     resetForm();
   };
 
-  // Reset form data
   const resetForm = () => {
     setFormData({
-      id: "",
       subject: subjects[0]?.id || "",
       day: "MON",
       start_time: "08:00",
@@ -237,7 +252,6 @@ export default function ClassSchedule() {
     });
   };
 
-  // Get dates for the current week
   const getWeekDates = (date) => {
     const day = date.getDay();
     const diff = date.getDate() - day + (day === 0 ? -6 : 1);
@@ -261,7 +275,10 @@ export default function ClassSchedule() {
       <header className="bg-[#1e293b] p-4">
         <div className="container mx-auto">
           <div className="flex items-center gap-3">
-            <button className="bg-blue-600/20 border border-blue-600/30 p-2 rounded-lg" onClick={() => window.history.back()}>
+            <button
+              className="bg-blue-600/20 border border-blue-600/30 p-2 rounded-lg"
+              onClick={() => window.history.back()}
+            >
               <ArrowLeft className="h-5 w-5" />
             </button>
             <div>
@@ -281,7 +298,6 @@ export default function ClassSchedule() {
         )}
 
         <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
-          {/* Levels List */}
           <div className="lg:col-span-1">
             <div className="bg-[#1e293b] rounded-xl overflow-hidden">
               <div className="p-4 border-b border-gray-800">
@@ -291,7 +307,9 @@ export default function ClassSchedule() {
                 {levels.map((level) => (
                   <div
                     key={level.id}
-                    className={`p-4 border-b border-gray-800 cursor-pointer hover:bg-[#172033] ${selectedLevel?.id === level.id ? "bg-[#172033]" : ""}`}
+                    className={`p-4 border-b border-gray-800 cursor-pointer hover:bg-[#172033] ${
+                      selectedLevel?.id === level.id ? "bg-[#172033]" : ""
+                    }`}
                     onClick={() => handleLevelClick(level)}
                   >
                     <div className="font-medium">{level.level}</div>
@@ -301,7 +319,6 @@ export default function ClassSchedule() {
             </div>
           </div>
 
-          {/* Schedule Grid */}
           <div className="lg:col-span-3">
             <div className="bg-[#1e293b] rounded-xl overflow-hidden">
               <div className="p-4">
@@ -309,7 +326,10 @@ export default function ClassSchedule() {
                   <div className="col-span-1">
                     <div className="h-12"></div>
                     {timeSlots.map((time) => (
-                      <div key={time} className="h-24 flex items-center justify-center text-sm text-gray-400">
+                      <div
+                        key={time}
+                        className="h-24 flex items-center justify-center text-sm text-gray-400"
+                      >
                         {time}
                       </div>
                     ))}
@@ -330,20 +350,36 @@ export default function ClassSchedule() {
                             {classItem ? (
                               <div className="bg-blue-600/20 p-2 rounded-lg h-full flex flex-col justify-between">
                                 <div>
-                                  <div className="font-medium text-sm">{getSubject(classItem.subject).nom}</div>
-                                  <div className="text-xs text-gray-300">{getLevel(classItem.level).level}</div>
+                                  <div className="font-medium text-sm">
+                                    {getSubject(classItem.subject).nom}
+                                  </div>
+                                  <div className="text-xs text-gray-300">
+                                    {getLevel(classItem.level).level}
+                                  </div>
                                 </div>
-                                <div className="text-xs text-blue-300">{getClasse(classItem.classe).name}</div>
-                                {/* Delete Button */}
-                                <button
-                                  className="absolute top-1 right-1 text-red-400 hover:text-red-600"
-                                  onClick={(e) => {
-                                    e.stopPropagation(); // Prevent triggering addClass
-                                    handleDeleteClick(classItem);
-                                  }}
-                                >
-                                  <Trash2 className="h-4 w-4" />
-                                </button>
+                                <div className="text-xs text-blue-300">
+                                  {getClasse(classItem.classe).name}
+                                </div>
+                                <div className="absolute top-1 right-1 flex gap-1">
+                                  <button
+                                    className="text-blue-400 hover:text-blue-600"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      handleEditClass(classItem);
+                                    }}
+                                  >
+                                    <Edit className="h-4 w-4" />
+                                  </button>
+                                  <button
+                                    className="text-red-400 hover:text-red-600"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      handleDeleteClick(classItem);
+                                    }}
+                                  >
+                                    <Trash2 className="h-4 w-4" />
+                                  </button>
+                                </div>
                               </div>
                             ) : (
                               <div className="h-full flex items-center justify-center text-gray-600 hover:bg-gray-700/20 rounded-lg">
@@ -358,10 +394,11 @@ export default function ClassSchedule() {
                 </div>
               </div>
 
-              {/* Add/Edit Form */}
               {(isAddingClass || isEditingClass) && (
                 <div className="p-4 border-t border-gray-800 bg-[#172033]">
-                  <h3 className="text-lg font-medium mb-4">{isAddingClass ? "Add New Class" : "Edit Class"}</h3>
+                  <h3 className="text-lg font-medium mb-4">
+                    {isAddingClass ? "Add New Class" : "Edit Class"}
+                  </h3>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
                     <div>
                       <label className="block text-sm text-gray-400 mb-1">Subject</label>
@@ -404,7 +441,9 @@ export default function ClassSchedule() {
                         className="w-full bg-[#0f172a] border border-gray-700 rounded-lg px-3 py-2 text-white"
                       >
                         {weekdays.map((day) => (
-                          <option key={day} value={day}>{day}</option>
+                          <option key={day} value={day}>
+                            {day}
+                          </option>
                         ))}
                       </select>
                     </div>
@@ -438,7 +477,9 @@ export default function ClassSchedule() {
                       >
                         <option value="">Select Classroom</option>
                         {classrooms.map((classe) => (
-                          <option key={classe.id} value={classe.id}>{classe.name}</option>
+                          <option key={classe.id} value={classe.id}>
+                            {classe.name}
+                          </option>
                         ))}
                       </select>
                     </div>
@@ -452,7 +493,9 @@ export default function ClassSchedule() {
                       >
                         <option value="">Select Level</option>
                         {levels.map((level) => (
-                          <option key={level.id} value={level.id}>{level.level}</option>
+                          <option key={level.id} value={level.id}>
+                            {level.level}
+                          </option>
                         ))}
                       </select>
                     </div>
@@ -484,7 +527,6 @@ export default function ClassSchedule() {
                 </div>
               )}
 
-              {/* Delete Confirmation */}
               {showDeleteConfirm && (
                 <div className="p-4 border-t border-gray-800 bg-[#172033]">
                   <div className="flex items-center gap-2 text-red-400 mb-4">
@@ -492,7 +534,8 @@ export default function ClassSchedule() {
                     <h3 className="text-lg font-medium">Confirm Deletion</h3>
                   </div>
                   <p className="text-sm text-gray-400 mb-4">
-                    Are you sure you want to delete "{getSubject(selectedClass.subject).nom}" on {selectedClass.day} at {selectedClass.start_time}?
+                    Are you sure you want to delete "{getSubject(selectedClass.subject).nom}" on{" "}
+                    {selectedClass.day} at {selectedClass.start_time}?
                   </p>
                   <div className="flex gap-2">
                     <button

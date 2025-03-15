@@ -6,22 +6,29 @@ const AdminSignUp = () => {
   const [username, setUsername] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [schoolName, setSchoolName] = useState(''); // Added school name state
   const [error, setError] = useState('');
   const navigate = useNavigate();
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
-      const response = await axios.post('http://localhost:8000/api/admin/signup/', {
+      const response = await axios.post('http://localhost:8000/auth/signup/', {
         username,
         email,
         password,
+        school_name: schoolName
+      }, {
+        headers: {
+          'Content-Type': 'application/json'
+        }
       });
       if (response.status === 201) {
-        navigate('/admin/login'); // Redirect to login page
+        navigate('/admin/login');
       }
     } catch (err) {
       setError('Error creating admin user');
+      console.error(err.response ? err.response.data : err.message);
     }
   };
 
@@ -65,6 +72,19 @@ const AdminSignUp = () => {
               onChange={(e) => setPassword(e.target.value)}
               className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all"
               placeholder="Enter your password"
+              required
+            />
+          </div>
+
+          {/* School Name Field */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">School Name</label>
+            <input
+              type="text"
+              value={schoolName}
+              onChange={(e) => setSchoolName(e.target.value)}
+              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all"
+              placeholder="Enter your school name"
               required
             />
           </div>

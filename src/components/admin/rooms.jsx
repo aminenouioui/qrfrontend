@@ -1,156 +1,149 @@
-"use client"
+"use client";
 
-import { useState, useEffect } from "react"
-import { ArrowLeft, Search, Plus, Edit, Trash2, X, Save, AlertCircle, Home } from "lucide-react"
-import axios from "axios"
+import { useState, useEffect } from "react";
+import { ArrowLeft, Search, Plus, Edit, Trash2, X, Save, AlertCircle, Home } from "lucide-react";
+import api from "../api"; // Ensure this path is correct
 
 export default function Rooms() {
-  const [searchQuery, setSearchQuery] = useState("")
-  const [selectedRoom, setSelectedRoom] = useState(null)
-  const [isAddingRoom, setIsAddingRoom] = useState(false)
-  const [isEditingRoom, setIsEditingRoom] = useState(false)
-  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
-  const [roomsData, setRoomsData] = useState([])
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState(null)
+  const [searchQuery, setSearchQuery] = useState("");
+  const [selectedRoom, setSelectedRoom] = useState(null);
+  const [isAddingRoom, setIsAddingRoom] = useState(false);
+  const [isEditingRoom, setIsEditingRoom] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [roomsData, setRoomsData] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
 
   const [formData, setFormData] = useState({
     id: "",
     name: "",
     capacity: 30,
-  })
+  });
 
-  const API_URL = "http://localhost:8000/" // Adjust to your Django server URL
+  const API_URL = "/api/classes/"; // Base URL corrected to match backend
 
-  // Fetch rooms from the backend
   useEffect(() => {
     const fetchRooms = async () => {
       try {
-        const response = await axios.get(`${API_URL}classe-list/`)
-        console.log("API Response from classe-list:", response.data) // Debug log
-        const data = Array.isArray(response.data) ? response.data : []
-        setRoomsData(data)
-        setLoading(false)
+        const response = await api.get(`${API_URL}list/`);
+        const data = Array.isArray(response.data) ? response.data : [];
+        setRoomsData(data);
+        setLoading(false);
       } catch (err) {
-        console.error("Error fetching rooms:", err)
-        setError("Failed to load rooms. Please try again later.")
-        setRoomsData([])
-        setLoading(false)
+        console.error("Error fetching rooms:", err.response ? err.response.data : err.message);
+        setError("Failed to load rooms. Please try again later.");
+        setRoomsData([]);
+        setLoading(false);
       }
-    }
-    fetchRooms()
-  }, [])
+    };
+    fetchRooms();
+  }, []);
 
-  // Filter rooms based on search
   const filteredRooms = roomsData.filter(
     (room) => searchQuery === "" || room.name.toLowerCase().includes(searchQuery.toLowerCase())
-  )
+  );
 
-  // Handle form input changes
   const handleInputChange = (e) => {
-    const { name, value } = e.target
+    const { name, value } = e.target;
     setFormData({
       ...formData,
       [name]: name === "capacity" ? Number.parseInt(value) || 0 : value,
-    })
-  }
+    });
+  };
 
-  // Initialize form for adding a new room
   const handleAddRoom = () => {
-    setFormData({ id: "", name: "", capacity: 30 })
-    setIsAddingRoom(true)
-    setIsEditingRoom(false)
-    setShowDeleteConfirm(false)
-    setSelectedRoom(null)
-    setError(null)
-  }
+    setFormData({ id: "", name: "", capacity: 30 });
+    setIsAddingRoom(true);
+    setIsEditingRoom(false);
+    setShowDeleteConfirm(false);
+    setSelectedRoom(null);
+    setError(null);
+  };
 
-  // Initialize form for editing an existing room
   const handleEditRoom = (room) => {
-    setFormData({ ...room })
-    setIsEditingRoom(true)
-    setIsAddingRoom(false)
-    setShowDeleteConfirm(false)
-    setSelectedRoom(room)
-    setError(null)
-  }
+    setFormData({ ...room });
+    setIsEditingRoom(true);
+    setIsAddingRoom(false);
+    setShowDeleteConfirm(false);
+    setSelectedRoom(room);
+    setError(null);
+  };
 
-  // Save a new room
   const handleSaveNewRoom = async () => {
     try {
-      const response = await axios.post(`${API_URL}add-classe/`, formData)
-      setRoomsData([...roomsData, response.data])
-      setIsAddingRoom(false)
-      resetForm()
-      setError(null)
+      const response = await api.post(`${API_URL}add/`, formData);
+      setRoomsData([...roomsData, response.data]);
+      setIsAddingRoom(false);
+      resetForm();
+      setError(null);
     } catch (err) {
-      console.error("Error adding room:", err)
-      if (err.response && err.response.data.errors) {
-        setError("Failed to add room: " + JSON.stringify(err.response.data.errors))
-      } else {
-        setError("Failed to add room. Please try again.")
-      }
+      console.error("Error adding room:", err.response ? err.response.data : err.message);
+      setError(
+        `Failed to add room: ${
+          err.response ? err.response.data.detail || JSON.stringify(err.response.data) : err.message
+        }`
+      );
     }
-  }
+  };
 
-  // Update an existing room (placeholder until implemented)
+  // Note: Update functionality not supported by backend yet. Disabled for now.
   const handleUpdateRoom = async () => {
-    if (!selectedRoom) return
+    if (!selectedRoom) return;
+    setError("Room updating is not yet supported by the backend.");
+    // Uncomment and adjust once backend supports PUT /api/classes/<int:id>/
+    /*
     try {
-      const response = await axios.put(`${API_URL}classe/${formData.id}/`, formData)
-      setRoomsData(roomsData.map((room) => (room.id === formData.id ? response.data : room)))
-      setIsEditingRoom(false)
-      setSelectedRoom(null)
-      setError(null)
+      const response = await api.put(`${API_URL}${formData.id}/`, formData);
+      setRoomsData(roomsData.map((room) => (room.id === formData.id ? response.data : room)));
+      setIsEditingRoom(false);
+      setSelectedRoom(null);
+      setError(null);
     } catch (err) {
-      console.error("Error updating room:", err)
-      if (err.response && err.response.data.errors) {
-        setError("Failed to update room: " + JSON.stringify(err.response.data.errors))
-      } else {
-        setError("Update functionality not yet implemented on the backend.")
-      }
+      console.error("Error updating room:", err.response ? err.response.data : err.message);
+      setError(
+        `Failed to update room: ${
+          err.response ? err.response.data.detail || JSON.stringify(err.response.data) : err.message
+        }`
+      );
     }
-  }
+    */
+  };
 
-  // Delete a room
   const handleDeleteRoom = async () => {
-    if (!selectedRoom) return
+    if (!selectedRoom) return;
     try {
-      await axios.delete(`${API_URL}classe/${selectedRoom.id}/delete/`)
-      setRoomsData(roomsData.filter((room) => room.id !== selectedRoom.id))
-      setShowDeleteConfirm(false)
-      setSelectedRoom(null)
-      setError(null)
+      await api.delete(`${API_URL}delete/${selectedRoom.id}/`);
+      setRoomsData(roomsData.filter((room) => room.id !== selectedRoom.id));
+      setShowDeleteConfirm(false);
+      setSelectedRoom(null);
+      setError(null);
     } catch (err) {
-      console.error("Error deleting room:", err)
-      if (err.response && err.response.data.error) {
-        setError("Failed to delete room: " + err.response.data.error)
-      } else {
-        setError("Failed to delete room. Please try again.")
-      }
+      console.error("Error deleting room:", err.response ? err.response.data : err.message);
+      setError(
+        `Failed to delete room: ${
+          err.response ? err.response.data.detail || JSON.stringify(err.response.data) : err.message
+        }`
+      );
     }
-  }
+  };
 
-  // Cancel form
   const handleCancelForm = () => {
-    setIsAddingRoom(false)
-    setIsEditingRoom(false)
-    setShowDeleteConfirm(false)
-    setError(null)
-  }
+    setIsAddingRoom(false);
+    setIsEditingRoom(false);
+    setShowDeleteConfirm(false);
+    setError(null);
+  };
 
-  // Reset form to default values
   const resetForm = () => {
-    setFormData({ id: "", name: "", capacity: 30 })
-  }
+    setFormData({ id: "", name: "", capacity: 30 });
+  };
 
   if (loading) {
-    return <div className="min-h-screen bg-[#111827] text-white p-6">Loading...</div>
+    return <div className="min-h-screen bg-[#111827] text-white p-6">Loading...</div>;
   }
 
   return (
     <div className="min-h-screen bg-[#111827] text-white">
-      {/* Header */}
       <header className="bg-[#1e293b] p-4">
         <div className="container mx-auto">
           <div className="flex items-center gap-3">
@@ -168,16 +161,13 @@ export default function Rooms() {
         </div>
       </header>
 
-      {/* Main Content */}
       <main className="container mx-auto p-6">
-        {/* Error Display */}
         {error && (
           <div className="bg-red-600/20 border border-red-600/30 p-4 rounded-lg mb-6 text-red-400">
             {error}
           </div>
         )}
 
-        {/* Top Controls */}
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6">
           <div className="relative w-full md:w-auto">
             <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
@@ -201,7 +191,6 @@ export default function Rooms() {
           </button>
         </div>
 
-        {/* Rooms Grid */}
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 mb-6">
           {filteredRooms.map((room) => (
             <div
@@ -218,8 +207,8 @@ export default function Rooms() {
                   <button
                     className="p-2 text-blue-400 hover:bg-blue-400/10 rounded-full"
                     onClick={(e) => {
-                      e.stopPropagation()
-                      handleEditRoom(room)
+                      e.stopPropagation();
+                      handleEditRoom(room);
                     }}
                   >
                     <Edit size={16} />
@@ -227,9 +216,9 @@ export default function Rooms() {
                   <button
                     className="p-2 text-red-400 hover:bg-red-400/10 rounded-full"
                     onClick={(e) => {
-                      e.stopPropagation()
-                      setSelectedRoom(room)
-                      setShowDeleteConfirm(true)
+                      e.stopPropagation();
+                      setSelectedRoom(room);
+                      setShowDeleteConfirm(true);
                     }}
                   >
                     <Trash2 size={16} />
@@ -251,7 +240,6 @@ export default function Rooms() {
           </div>
         )}
 
-        {/* Add/Edit Room Form */}
         {(isAddingRoom || isEditingRoom) && (
           <div className="bg-[#1e293b] rounded-xl overflow-hidden">
             <div className="p-4 border-b border-gray-800 flex justify-between items-center">
@@ -306,7 +294,6 @@ export default function Rooms() {
           </div>
         )}
 
-        {/* Delete Confirmation */}
         {showDeleteConfirm && selectedRoom && (
           <div className="bg-[#1e293b] rounded-xl overflow-hidden">
             <div className="p-4 border-b border-gray-800 flex items-center gap-3 text-yellow-400">
@@ -337,5 +324,5 @@ export default function Rooms() {
         )}
       </main>
     </div>
-  )
+  );
 }

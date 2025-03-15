@@ -1,7 +1,7 @@
-"use client"
+"use client";
 
-import { useState, useEffect, useCallback } from "react"
-import axios from "axios"
+import { useState, useEffect, useCallback } from "react";
+import api from "../api"; // Ensure this points to your axios instance
 import {
   ArrowLeft,
   Calendar,
@@ -15,23 +15,23 @@ import {
   Clock,
   BookOpen,
   Trash2,
-} from "lucide-react"
+} from "lucide-react";
 
 export default function AttendanceTracking() {
-  const [currentWeek, setCurrentWeek] = useState(new Date())
-  const [selectedStudent, setSelectedStudent] = useState(null)
-  const [searchQuery, setSearchQuery] = useState("")
-  const [selectedLevel, setSelectedLevel] = useState("All")
-  const [selectedClass, setSelectedClass] = useState(null)
-  const [selectedDate, setSelectedDate] = useState(null)
-  const [classSchedule, setClassSchedule] = useState([])
-  const [subjects, setSubjects] = useState([])
-  const [students, setStudents] = useState([])
-  const [attendanceData, setAttendanceData] = useState({})
-  const [levels, setLevels] = useState([])
-  const [levelMap, setLevelMap] = useState({})
-  const [levelIdMap, setLevelIdMap] = useState({})
-  const [error, setError] = useState(null)
+  const [currentWeek, setCurrentWeek] = useState(new Date());
+  const [selectedStudent, setSelectedStudent] = useState(null);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [selectedLevel, setSelectedLevel] = useState("All");
+  const [selectedClass, setSelectedClass] = useState(null);
+  const [selectedDate, setSelectedDate] = useState(null);
+  const [classSchedule, setClassSchedule] = useState([]);
+  const [subjects, setSubjects] = useState([]);
+  const [students, setStudents] = useState([]);
+  const [attendanceData, setAttendanceData] = useState({});
+  const [levels, setLevels] = useState([]);
+  const [levelMap, setLevelMap] = useState({});
+  const [levelIdMap, setLevelIdMap] = useState({});
+  const [error, setError] = useState(null);
   const [loading, setLoading] = useState({
     students: true,
     levels: true,
@@ -39,146 +39,119 @@ export default function AttendanceTracking() {
     schedule: false,
     attendance: false,
     saving: false,
-  })
-  const [confirmDelete, setConfirmDelete] = useState(null)
-  // Add a state to force re-renders when attendance is updated
-  const [attendanceVersion, setAttendanceVersion] = useState(0)
-  // Add a new state to track if we've made local changes that need to be preserved
-  const [localAttendanceChanges, setLocalAttendanceChanges] = useState({})
-
-  const API_BASE_URL = "http://localhost:8000"
+  });
+  const [confirmDelete, setConfirmDelete] = useState(null);
+  const [attendanceVersion, setAttendanceVersion] = useState(0);
 
   // Fetch students and levels on component mount
   useEffect(() => {
     const fetchStudentsAndLevels = async () => {
-      setLoading((prev) => ({ ...prev, students: true, levels: true }))
+      setLoading((prev) => ({ ...prev, students: true, levels: true }));
       try {
         const [studentsResponse, levelsResponse] = await Promise.all([
-          axios.get(`${API_BASE_URL}/list/`),
-          axios.get(`${API_BASE_URL}/levels/`),
-        ])
-        console.log("Students fetched:", studentsResponse.data)
-        console.log("Levels fetched:", levelsResponse.data)
-        setStudents(studentsResponse.data || [])
+          api.get("/api/students/list/"), // Matches student_qr
+          api.get("/api/levels/list/"),   // Matches student_qr
+        ]);
+        console.log("Students fetched:", studentsResponse.data);
+        console.log("Levels fetched:", levelsResponse.data);
+        setStudents(studentsResponse.data || []);
 
-        const levelData = levelsResponse.data || []
-        const levelNames = levelData.map((level) => level.level.toString())
-        const idToName = {}
-        const nameToId = {}
+        const levelData = levelsResponse.data || [];
+        const levelNames = levelData.map((level) => level.level.toString());
+        const idToName = {};
+        const nameToId = {};
         levelData.forEach((level) => {
-          idToName[level.id] = level.level.toString()
-          nameToId[level.level.toString()] = level.id
-        })
+          idToName[level.id] = level.level.toString();
+          nameToId[level.level.toString()] = level.id;
+        });
 
-        setLevels(["All", ...new Set(levelNames)])
-        setLevelMap(idToName)
-        setLevelIdMap(nameToId)
-        setError(null)
+        setLevels(["All", ...new Set(levelNames)]);
+        setLevelMap(idToName);
+        setLevelIdMap(nameToId);
+        setError(null);
 
-        const lastSelectedStudentId = localStorage.getItem("lastSelectedStudentId")
+        const lastSelectedStudentId = localStorage.getItem("lastSelectedStudentId");
         if (lastSelectedStudentId) {
-          const student = studentsResponse.data.find((s) => s.id === Number.parseInt(lastSelectedStudentId))
-          if (student) setSelectedStudent(student)
+          const student = studentsResponse.data.find((s) => s.id === Number.parseInt(lastSelectedStudentId));
+          if (student) setSelectedStudent(student);
         }
-        setLoading((prev) => ({ ...prev, students: false, levels: false }))
+        setLoading((prev) => ({ ...prev, students: false, levels: false }));
       } catch (error) {
-        console.error("Fetch students/levels error:", error)
-        setError(`Failed to load students/levels: ${error.message}`)
-        setLoading((prev) => ({ ...prev, students: false, levels: false }))
+        console.error("Fetch students/levels error:", error);
+        setError(`Failed to load students/levels: ${error.message}`);
+        setLoading((prev) => ({ ...prev, students: false, levels: false }));
       }
-    }
-    fetchStudentsAndLevels()
-  }, [])
+    };
+    fetchStudentsAndLevels();
+  }, []);
 
   // Fetch subjects on component mount
   useEffect(() => {
     const fetchSubjects = async () => {
-      setLoading((prev) => ({ ...prev, subjects: true }))
+      setLoading((prev) => ({ ...prev, subjects: true }));
       try {
-        const response = await axios.get(`${API_BASE_URL}/subjects/`)
-        console.log("Subjects fetched:", response.data)
-        setSubjects(response.data || [])
-        setError(null)
-        setLoading((prev) => ({ ...prev, subjects: false }))
+        const response = await api.get("/api/subjects/list/"); // Matches teacher_qr
+        console.log("Subjects fetched:", response.data);
+        setSubjects(response.data || []);
+        setError(null);
+        setLoading((prev) => ({ ...prev, subjects: false }));
       } catch (error) {
-        console.error("Fetch subjects error:", error)
-        setError(`Failed to load subjects: ${error.message}`)
-        setLoading((prev) => ({ ...prev, subjects: false }))
+        console.error("Fetch subjects error:", error);
+        setError(`Failed to load subjects: ${error.message}`);
+        setLoading((prev) => ({ ...prev, subjects: false }));
       }
-    }
-    fetchSubjects()
-  }, [])
+    };
+    fetchSubjects();
+  }, []);
 
   // Fetch class schedules for the selected student's level
   useEffect(() => {
     if (selectedStudent) {
       const fetchClassSchedule = async () => {
-        setLoading((prev) => ({ ...prev, schedule: true }))
+        setLoading((prev) => ({ ...prev, schedule: true }));
         try {
-          const levelId = selectedStudent.level
-          const response = await axios.get(`${API_BASE_URL}/api/schedules/level/${levelId}/?t=${Date.now()}`)
-          console.log(`Class schedule for level ${levelId}:`, response.data)
-          setClassSchedule(response.data || [])
-          setError(null)
-          setLoading((prev) => ({ ...prev, schedule: false }))
+          const levelId = selectedStudent.level;
+          const response = await api.get(`/api/schedules/level/${levelId}/`); // Matches student_qr
+          console.log(`Class schedule for level ${levelId}:`, response.data);
+          setClassSchedule(response.data || []);
+          setError(null);
+          setLoading((prev) => ({ ...prev, schedule: false }));
         } catch (error) {
-          console.error("Fetch class schedule error:", error)
-          setError(`Failed to load class schedule: ${error.message}`)
-          setLoading((prev) => ({ ...prev, schedule: false }))
+          console.error("Fetch class schedule error:", error);
+          setError(`Failed to load class schedule: ${error.message}`);
+          setLoading((prev) => ({ ...prev, schedule: false }));
         }
-      }
-      fetchClassSchedule()
+      };
+      fetchClassSchedule();
     } else {
-      setClassSchedule([])
+      setClassSchedule([]);
     }
-  }, [selectedStudent])
+  }, [selectedStudent]);
 
-  // Fetch attendance data for the selected student with cache-busting
+  // Fetch attendance data for the selected student
   useEffect(() => {
     if (selectedStudent) {
-      console.log(`Fetching attendance for student ${selectedStudent.id}`)
+      console.log(`Fetching attendance for student ${selectedStudent.id}`);
       const fetchAttendance = async () => {
-        setLoading((prev) => ({ ...prev, attendance: true }))
+        setLoading((prev) => ({ ...prev, attendance: true }));
         try {
-          const response = await axios.get(`${API_BASE_URL}/api/attendance/${selectedStudent.id}/?t=${Date.now()}`)
-          console.log(`Fetched attendance for ${selectedStudent.id}:`, response.data)
-
-          // Merge backend data with any local changes we've made
-          setAttendanceData((prev) => {
-            const backendData = response.data || {}
-            const studentLocalChanges = localAttendanceChanges[selectedStudent.id] || {}
-
-            // Merge backend data with local changes, prioritizing local changes
-            const mergedData = {
-              ...backendData,
-              ...studentLocalChanges,
-            }
-
-            console.log("MERGING DATA:", {
-              backend: backendData,
-              localChanges: studentLocalChanges,
-              merged: mergedData,
-            })
-
-            const newData = {
-              ...prev,
-              [selectedStudent.id]: mergedData,
-            }
-            console.log("Updated attendanceData:", newData)
-            return newData
-          })
-
-          setError(null)
-          setLoading((prev) => ({ ...prev, attendance: false }))
+          const response = await api.get(`/api/attendance/${selectedStudent.id}/`); // Matches student_qr
+          console.log(`Fetched attendance for ${selectedStudent.id}:`, response.data);
+          setAttendanceData((prev) => ({
+            ...prev,
+            [selectedStudent.id]: response.data || {},
+          }));
+          setError(null);
+          setLoading((prev) => ({ ...prev, attendance: false }));
         } catch (error) {
-          console.error("Fetch attendance error:", error)
-          setError(`Failed to load attendance: ${error.message}`)
-          setLoading((prev) => ({ ...prev, attendance: false }))
+          console.error("Fetch attendance error:", error);
+          setError(`Failed to load attendance: ${error.message}`);
+          setLoading((prev) => ({ ...prev, attendance: false }));
         }
-      }
-      fetchAttendance()
+      };
+      fetchAttendance();
     }
-  }, [selectedStudent, localAttendanceChanges])
+  }, [selectedStudent, attendanceVersion]);
 
   // Filter students based on search and level
   const filteredStudents = students.filter((student) => {
@@ -186,288 +159,217 @@ export default function AttendanceTracking() {
       searchQuery === "" ||
       student.nom.toLowerCase().includes(searchQuery.toLowerCase()) ||
       student.prenom.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      String(student.id).includes(searchQuery)
+      String(student.id).includes(searchQuery);
 
-    const studentLevelId = student.level ? student.level.toString() : null
-    const selectedLevelId = selectedLevel === "All" ? null : levelIdMap[selectedLevel]?.toString()
+    const studentLevelId = student.level ? student.level.toString() : null;
+    const selectedLevelId = selectedLevel === "All" ? null : levelIdMap[selectedLevel]?.toString();
     const matchesLevel =
-      selectedLevel === "All" || (studentLevelId && selectedLevelId && studentLevelId === selectedLevelId)
+      selectedLevel === "All" || (studentLevelId && selectedLevelId && studentLevelId === selectedLevelId);
 
-    return matchesSearch && matchesLevel
-  })
+    return matchesSearch && matchesLevel;
+  });
 
   // Get subject name by ID
   const getSubjectName = (subjectId) => {
-    const subject = subjects.find((s) => s.id === subjectId)
-    return subject ? subject.nom : `Subject ${subjectId}`
-  }
+    const subject = subjects.find((s) => s.id === subjectId);
+    return subject ? subject.nom : `Subject ${subjectId}`;
+  };
+
+  const getClasseName = (classeId) => {
+    // Assuming classe is an ID; you may need to fetch classes if you want to display the name
+    return `Room ${classeId}`; // Replace with proper fetching if needed
+  };
 
   // Get week dates (Monday to Friday)
   const getWeekDates = (date) => {
-    const day = date.getDay()
-    const diff = date.getDate() - day + (day === 0 ? -6 : 1)
-    const monday = new Date(date)
-    monday.setDate(diff)
+    const day = date.getDay();
+    const diff = date.getDate() - day + (day === 0 ? -6 : 1);
+    const monday = new Date(date);
+    monday.setDate(diff);
 
-    const weekDates = []
+    const weekDates = [];
     for (let i = 0; i < 5; i++) {
-      const date = new Date(monday)
-      date.setDate(monday.getDate() + i)
-      weekDates.push(date)
+      const date = new Date(monday);
+      date.setDate(monday.getDate() + i);
+      weekDates.push(date);
     }
-    return weekDates
-  }
+    return weekDates;
+  };
 
-  const weekDates = getWeekDates(new Date(currentWeek))
+  const weekDates = getWeekDates(new Date(currentWeek));
 
   const formatDate = (date) => {
-    return date.toLocaleDateString("en-US", { month: "short", day: "numeric" })
-  }
+    return date.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+  };
 
-  // Modify the formatDateKey function to ensure consistent formatting
   const formatDateKey = (date) => {
-    // Ensure we're working with a Date object
-    const dateObj = new Date(date)
-    return `${dateObj.getFullYear()}-${String(dateObj.getMonth() + 1).padStart(
-      2,
-      "0",
-    )}-${String(dateObj.getDate()).padStart(2, "0")}`
-  }
+    const dateObj = new Date(date);
+    return `${dateObj.getFullYear()}-${String(dateObj.getMonth() + 1).padStart(2, "0")}-${String(dateObj.getDate()).padStart(2, "0")}`;
+  };
 
   const prevWeek = () => {
-    const newDate = new Date(currentWeek)
-    newDate.setDate(newDate.getDate() - 7)
-    setCurrentWeek(newDate)
-    setSelectedClass(null)
-  }
+    const newDate = new Date(currentWeek);
+    newDate.setDate(newDate.getDate() - 7);
+    setCurrentWeek(newDate);
+    setSelectedClass(null);
+  };
 
   const nextWeek = () => {
-    const newDate = new Date(currentWeek)
-    newDate.setDate(newDate.getDate() + 7)
-    setCurrentWeek(newDate)
-    setSelectedClass(null)
-  }
+    const newDate = new Date(currentWeek);
+    newDate.setDate(newDate.getDate() + 7);
+    setCurrentWeek(newDate);
+    setSelectedClass(null);
+  };
 
   // Calculate attendance statistics
   const calculateAttendance = (studentId) => {
-    if (!attendanceData[studentId]) return { present: 0, absent: 0, retard: 0, att: 0, percentage: 0 }
+    if (!attendanceData[studentId]) return { present: 0, absent: 0, retard: 0, att: 0, percentage: 0 };
 
-    const data = attendanceData[studentId]
-    const total = Object.keys(data).length
-    const present = Object.values(data).filter((status) => status === "present").length
-    const absent = Object.values(data).filter((status) => status === "absent").length
-    const retard = Object.values(data).filter((status) => status === "retard").length
-    const att = Object.values(data).filter((status) => status === "att").length
-    const percentage = total > 0 ? Math.round((present / total) * 100) : 0
+    const data = attendanceData[studentId];
+    const total = Object.keys(data).length;
+    const present = Object.values(data).filter((status) => status === "present").length;
+    const absent = Object.values(data).filter((status) => status === "absent").length;
+    const retard = Object.values(data).filter((status) => status === "retard").length;
+    const att = Object.values(data).filter((status) => status === "att").length;
+    const percentage = total > 0 ? Math.round((present / total) * 100) : 0;
 
-    return { present, absent, retard, att, percentage }
-  }
+    return { present, absent, retard, att, percentage };
+  };
 
-  // Update the getAttendanceStatus function to add more detailed logging
+  // Get attendance status
   const getAttendanceStatus = useCallback(
     (studentId, classId, date) => {
       if (!studentId || !attendanceData[studentId]) {
-        console.log(`No attendance data for student ${studentId}`)
-        return null
+        console.log(`No attendance data for student ${studentId}`);
+        return null;
       }
 
-      const dateKey = `${formatDateKey(date)}-${classId}`
-      const status = attendanceData[studentId][dateKey]
-
-      console.log(
-        `ATTENDANCE CHECK: student=${studentId}, class=${classId}, date=${formatDateKey(date)}, dateKey=${dateKey}, status=${status || "Not Set"}, attendanceVersion=${attendanceVersion}`,
-      )
-
-      return status
+      const dateKey = `${formatDateKey(date)}-${classId}`;
+      const status = attendanceData[studentId][dateKey];
+      console.log(`Attendance check: student=${studentId}, class=${classId}, date=${formatDateKey(date)}, status=${status || "Not Set"}`);
+      return status;
     },
     [attendanceData, attendanceVersion],
-  )
+  );
 
-  // Modify the updateAttendanceStatus function to be more robust
+  // Update attendance status
   const updateAttendanceStatus = async (classId, date, status) => {
-    if (!selectedStudent || !classId || !date) return
+    if (!selectedStudent || !classId || !date) return;
 
-    const dateKey = `${formatDateKey(date)}-${classId}`
-    console.log(`UPDATING STATUS: dateKey=${dateKey}, status=${status}`)
-
-    // Show saving indicator
-    setError("Saving attendance status...")
-    setLoading((prev) => ({ ...prev, saving: true }))
-
-    // Create a local variable to store the updated attendance data
-    const newAttendanceData = JSON.parse(JSON.stringify(attendanceData))
-
-    // Ensure the student object exists
-    if (!newAttendanceData[selectedStudent.id]) {
-      newAttendanceData[selectedStudent.id] = {}
-    }
-
-    // Set the status in our local copy
-    newAttendanceData[selectedStudent.id][dateKey] = status
-    console.log(`OPTIMISTIC UPDATE: Setting ${dateKey} to ${status}`, newAttendanceData[selectedStudent.id])
-
-    // Update the state with our local copy
-    setAttendanceData(newAttendanceData)
-
-    // Store this change in our local changes tracker
-    setLocalAttendanceChanges((prev) => {
-      const studentChanges = prev[selectedStudent.id] || {}
-      return {
-        ...prev,
-        [selectedStudent.id]: {
-          ...studentChanges,
-          [dateKey]: status,
-        },
-      }
-    })
-
-    // Force a re-render
-    setAttendanceVersion((v) => v + 1)
+    const dateKey = `${formatDateKey(date)}-${classId}`;
+    setLoading((prev) => ({ ...prev, saving: true }));
+    setError("Saving attendance status...");
 
     try {
-      // Prepare the data for the API call
+      // Optimistically update the attendance data
+      setAttendanceData((prev) => {
+        const updatedData = { ...prev };
+        if (!updatedData[selectedStudent.id]) updatedData[selectedStudent.id] = {};
+        updatedData[selectedStudent.id][dateKey] = status;
+        return updatedData;
+      });
+
       const apiData = {
         student_id: selectedStudent.id,
         schedule_id: classId,
         date: formatDateKey(date),
         status,
-      }
+      };
 
-      console.log(`SENDING TO API:`, apiData)
+      const response = await api.post("/api/attendance/add/", apiData); // Matches student_qr
+      console.log("POST response:", response.data);
 
-      const response = await axios.post(`${API_BASE_URL}/api/attendance/add/`, apiData)
-      console.log("POST response:", response.data)
-
-      // After successful save, refetch to ensure sync with backend
-      const fetchResponse = await axios.get(`${API_BASE_URL}/api/attendance/${selectedStudent.id}/?t=${Date.now()}`)
-      console.log("Refetched attendance after save:", fetchResponse.data)
-
-      // Check if the backend data includes our updated status
-      const backendData = fetchResponse.data || {}
-      const backendStatus = backendData[dateKey]
-
-      console.log(`BACKEND STATUS for ${dateKey}: ${backendStatus || "Not found"}`)
-
-      // If the backend doesn't have our status, keep our local version
-      if (!backendStatus && newAttendanceData[selectedStudent.id][dateKey]) {
-        console.log(`BACKEND MISSING STATUS: Keeping local status ${newAttendanceData[selectedStudent.id][dateKey]}`)
-        const mergedData = {
-          ...backendData,
-          [dateKey]: newAttendanceData[selectedStudent.id][dateKey],
-        }
-
-        setAttendanceData((prev) => ({
-          ...prev,
-          [selectedStudent.id]: mergedData,
-        }))
-      } else {
-        // Otherwise use the backend data
-        setAttendanceData((prev) => ({
-          ...prev,
-          [selectedStudent.id]: backendData,
-        }))
-      }
-
-      // Force another re-render
-      setAttendanceVersion((v) => v + 1)
-
-      setError("Attendance saved successfully!")
-      setTimeout(() => setError(null), 2000)
+      // Force a re-render and refetch to ensure sync with backend
+      setAttendanceVersion((v) => v + 1);
+      setError("Attendance saved successfully!");
+      setTimeout(() => setError(null), 2000);
     } catch (error) {
-      console.error("Update attendance error:", error)
-      setError(`Failed to update attendance: ${error.response?.statusText || error.message}`)
-
-      // Even on error, keep our optimistic update
-      console.log("ERROR: Keeping optimistic update")
+      console.error("Update attendance error:", error);
+      setError(`Failed to update attendance: ${error.response?.data?.detail || error.message}`);
+      // Rollback on error
+      setAttendanceData((prev) => {
+        const updatedData = { ...prev };
+        if (updatedData[selectedStudent.id] && updatedData[selectedStudent.id][dateKey]) {
+          delete updatedData[selectedStudent.id][dateKey];
+        }
+        return updatedData;
+      });
     } finally {
-      setLoading((prev) => ({ ...prev, saving: false }))
+      setLoading((prev) => ({ ...prev, saving: false }));
     }
-  }
+  };
 
   // Delete attendance record
   const deleteAttendance = async (classId, date) => {
-    if (!selectedStudent || !classId || !date) return
+    if (!selectedStudent || !classId || !date) return;
 
-    const dateKey = `${formatDateKey(date)}-${classId}`
+    const dateKey = `${formatDateKey(date)}-${classId}`;
+    setError("Deleting attendance record...");
 
     try {
-      setError("Deleting attendance record...")
-      await axios.delete(
-        `${API_BASE_URL}/api/attendance/delete/${selectedStudent.id}/${classId}/${formatDateKey(date)}/`,
-      )
+      await api.delete(`/api/attendance/delete/${selectedStudent.id}/${classId}/${formatDateKey(date)}/`); // Matches student_qr
 
       // Update local state immediately
-      const newAttendanceData = JSON.parse(JSON.stringify(attendanceData))
-      if (newAttendanceData[selectedStudent.id] && newAttendanceData[selectedStudent.id][dateKey]) {
-        delete newAttendanceData[selectedStudent.id][dateKey]
-        setAttendanceData(newAttendanceData)
+      setAttendanceData((prev) => {
+        const updatedData = { ...prev };
+        if (updatedData[selectedStudent.id] && updatedData[selectedStudent.id][dateKey]) {
+          delete updatedData[selectedStudent.id][dateKey];
+        }
+        return updatedData;
+      });
 
-        // Also remove from local changes
-        setLocalAttendanceChanges((prev) => {
-          const studentChanges = { ...(prev[selectedStudent.id] || {}) }
-          if (studentChanges[dateKey]) {
-            delete studentChanges[dateKey]
-          }
-          return {
-            ...prev,
-            [selectedStudent.id]: studentChanges,
-          }
-        })
-
-        setAttendanceVersion((v) => v + 1)
-      }
-
-      setSelectedClass(null)
-      setSelectedDate(null)
-      setConfirmDelete(null)
-      setError("Attendance record deleted successfully!")
-      setTimeout(() => setError(null), 2000)
+      setAttendanceVersion((v) => v + 1);
+      setSelectedClass(null);
+      setSelectedDate(null);
+      setConfirmDelete(null);
+      setError("Attendance record deleted successfully!");
+      setTimeout(() => setError(null), 2000);
     } catch (error) {
-      console.error("Delete attendance error:", error)
-      setError(`Failed to delete attendance: ${error.message}`)
-      setConfirmDelete(null)
+      console.error("Delete attendance error:", error);
+      setError(`Failed to delete attendance: ${error.message}`);
+      setConfirmDelete(null);
     }
-  }
+  };
 
   // Get status color
   const getStatusColor = (status) => {
     switch (status) {
       case "present":
-        return "bg-green-500/20 text-green-400 border-green-500/30"
+        return "bg-green-500/20 text-green-400 border-green-500/30";
       case "absent":
-        return "bg-red-500/20 text-red-400 border-red-500/30"
+        return "bg-red-500/20 text-red-400 border-red-500/30";
       case "retard":
-        return "bg-yellow-500/20 text-yellow-400 border-yellow-500/30"
+        return "bg-yellow-500/20 text-yellow-400 border-yellow-500/30";
       case "att":
-        return "bg-blue-500/20 text-blue-400 border-blue-500/30"
+        return "bg-blue-500/20 text-blue-400 border-blue-500/30";
       default:
-        return "bg-[#0f172a]"
+        return "bg-[#0f172a] text-gray-400";
     }
-  }
+  };
 
   // Get status icon
   const getStatusIcon = (status) => {
     switch (status) {
       case "present":
-        return <Check className="h-4 w-4 text-green-400" />
+        return <Check className="h-4 w-4 text-green-400" />;
       case "absent":
-        return <X className="h-4 w-4 text-red-400" />
+        return <X className="h-4 w-4 text-red-400" />;
       case "retard":
-        return <Clock className="h-4 w-4 text-yellow-400" />
+        return <Clock className="h-4 w-4 text-yellow-400" />;
       case "att":
-        return <Clock className="h-4 w-4 text-blue-400" />
+        return <Clock className="h-4 w-4 text-blue-400" />;
       default:
-        return null
+        return <Clock className="h-4 w-4" />;
     }
-  }
+  };
 
   // Map day number to day name
   const getDayName = (dayNumber) => {
-    const days = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"]
-    return days[dayNumber]
-  }
+    const days = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+    return days[dayNumber];
+  };
 
-  // Get classes for a specific day with logging
+  // Get classes for a specific day
   const getClassesForDay = (dayName) => {
     const dayMap = {
       Monday: ["Monday", "Mon", "monday", "mon", "MON"],
@@ -475,77 +377,18 @@ export default function AttendanceTracking() {
       Wednesday: ["Wednesday", "Wed", "wednesday", "wed", "WED"],
       Thursday: ["Thursday", "Thu", "thursday", "thu", "THU"],
       Friday: ["Friday", "Fri", "friday", "fri", "FRI"],
-    }
-    const possibleDays = dayMap[dayName] || [dayName.toLowerCase()]
-    const filteredClasses = classSchedule.filter((cls) => cls.day && possibleDays.includes(cls.day.toUpperCase()))
-    return filteredClasses
-  }
+    };
+    const possibleDays = dayMap[dayName] || [dayName.toLowerCase()];
+    return classSchedule.filter((cls) => cls.day && possibleDays.includes(cls.day.toUpperCase()));
+  };
 
   // Handle student selection
   const handleStudentSelect = (student) => {
-    setSelectedStudent(student)
-    localStorage.setItem("lastSelectedStudentId", student.id)
-    setSelectedClass(null)
-  }
-
-  // Force refresh attendance data
-  const refreshAttendanceData = async () => {
-    if (!selectedStudent) return
-
-    setLoading((prev) => ({ ...prev, attendance: true }))
-    try {
-      const response = await axios.get(`${API_BASE_URL}/api/attendance/${selectedStudent.id}/?t=${Date.now()}`)
-      console.log(`Force refreshed attendance for ${selectedStudent.id}:`, response.data)
-      setAttendanceData((prev) => ({
-        ...prev,
-        [selectedStudent.id]: response.data || {},
-      }))
-      setAttendanceVersion((v) => v + 1)
-      setLoading((prev) => ({ ...prev, attendance: false }))
-      setError("Attendance data refreshed!")
-      setTimeout(() => setError(null), 2000)
-    } catch (error) {
-      console.error("Force refresh error:", error)
-      setLoading((prev) => ({ ...prev, attendance: false }))
-      setError("Failed to refresh attendance data")
-    }
-  }
-
-  // Update the debugAttendance function to show more information
-  const debugAttendance = () => {
-    if (!selectedStudent || !selectedClass || !selectedDate) return null
-
-    const dateKey = `${formatDateKey(selectedDate)}-${selectedClass.id}`
-    const status = attendanceData[selectedStudent.id]?.[dateKey]
-    const localChange = localAttendanceChanges[selectedStudent.id]?.[dateKey]
-
-    // Get all keys for this student to help debug
-    const allKeys = attendanceData[selectedStudent.id] ? Object.keys(attendanceData[selectedStudent.id]) : []
-    const allStatuses = attendanceData[selectedStudent.id]
-      ? Object.entries(attendanceData[selectedStudent.id])
-          .map(([k, v]) => `${k}: ${v}`)
-          .join(", ")
-      : "None"
-    const localChangesCount = Object.keys(localAttendanceChanges[selectedStudent.id] || {}).length
-
-    return (
-      <div className="mt-2 p-2 bg-[#0f172a] rounded text-xs">
-        <div>Debug Info:</div>
-        <div>Date Key: {dateKey}</div>
-        <div>Status: {status || "Not Set"}</div>
-        <div>Local Change: {localChange || "None"}</div>
-        <div>Version: {attendanceVersion}</div>
-        <div>Student ID: {selectedStudent.id}</div>
-        <div>Class ID: {selectedClass.id}</div>
-        <div>Date: {formatDateKey(selectedDate)}</div>
-        <div>Total Keys: {allKeys.length}</div>
-        <div>Local Changes: {localChangesCount}</div>
-        <div className="mt-1">
-          All Statuses: {allStatuses.length > 100 ? allStatuses.substring(0, 100) + "..." : allStatuses}
-        </div>
-      </div>
-    )
-  }
+    setSelectedStudent(student);
+    localStorage.setItem("lastSelectedStudentId", student.id);
+    setSelectedClass(null);
+    setSelectedDate(null);
+  };
 
   return (
     <div className="min-h-screen bg-[#111827] text-white">
@@ -572,16 +415,16 @@ export default function AttendanceTracking() {
         {error && (
           <div
             className={`${
-              error.includes("saved successfully") || error.includes("refreshed")
+              error.includes("saved successfully") || error.includes("deleted successfully")
                 ? "bg-green-600/20 border-green-600/30"
-                : error.includes("Saving")
-                  ? "bg-blue-600/20 border-blue-600/30"
-                  : "bg-red-600/20 border-red-600/30"
+                : error.includes("Saving") || error.includes("Deleting")
+                ? "bg-blue-600/20 border-blue-600/30"
+                : "bg-red-600/20 border-red-600/30"
             } p-4 rounded-lg mb-6 flex items-center gap-2`}
           >
-            {error.includes("saved successfully") || error.includes("refreshed") ? (
+            {error.includes("saved successfully") || error.includes("deleted successfully") ? (
               <Check className="h-5 w-5 text-green-400" />
-            ) : error.includes("Saving") ? (
+            ) : error.includes("Saving") || error.includes("Deleting") ? (
               <Clock className="h-5 w-5 text-blue-400" />
             ) : (
               <X className="h-5 w-5 text-red-400" />
@@ -624,7 +467,6 @@ export default function AttendanceTracking() {
               </div>
 
               <div className="max-h-[600px] overflow-y-auto">
-                {/* Student List Loading */}
                 {loading.students && (
                   <div className="p-6 text-center text-gray-400">
                     <div className="animate-pulse flex flex-col items-center">
@@ -636,8 +478,8 @@ export default function AttendanceTracking() {
                 )}
 
                 {filteredStudents.map((student) => {
-                  const { percentage } = calculateAttendance(student.id)
-                  const isSelected = selectedStudent?.id === student.id
+                  const { percentage } = calculateAttendance(student.id);
+                  const isSelected = selectedStudent?.id === student.id;
 
                   return (
                     <div
@@ -668,7 +510,7 @@ export default function AttendanceTracking() {
                         {percentage}%
                       </div>
                     </div>
-                  )
+                  );
                 })}
 
                 {filteredStudents.length === 0 && !loading.students && (
@@ -764,7 +606,6 @@ export default function AttendanceTracking() {
                   <div className="p-4">
                     <h3 className="font-medium mb-4">Weekly Class Schedule</h3>
 
-                    {/* Class Schedule Loading */}
                     {loading.schedule && (
                       <div className="p-6 text-center text-gray-400">
                         <div className="animate-pulse flex flex-col items-center">
@@ -777,8 +618,8 @@ export default function AttendanceTracking() {
                     )}
 
                     {weekDates.map((date, dateIndex) => {
-                      const dayName = getDayName(date.getDay())
-                      const classes = getClassesForDay(dayName)
+                      const dayName = getDayName(date.getDay());
+                      const classes = getClassesForDay(dayName);
 
                       return (
                         <div key={dateIndex} className="mb-4">
@@ -789,11 +630,10 @@ export default function AttendanceTracking() {
                           {classes.length > 0 ? (
                             <div className="border border-gray-800 rounded-b-lg divide-y divide-gray-800">
                               {classes.map((cls) => {
-                                // Force re-evaluation of status with the key
-                                const status = getAttendanceStatus(selectedStudent.id, cls.id, date)
+                                const status = getAttendanceStatus(selectedStudent.id, cls.id, date);
                                 const isSelected =
-                                  selectedClass?.id === cls.id && selectedDate?.getTime() === date.getTime()
-                                const isInFuture = date > new Date()
+                                  selectedClass?.id === cls.id && selectedDate?.getTime() === date.getTime();
+                                const isInFuture = date > new Date();
 
                                 return (
                                   <div
@@ -803,8 +643,8 @@ export default function AttendanceTracking() {
                                     }`}
                                     onClick={() => {
                                       if (!isInFuture) {
-                                        setSelectedClass(cls)
-                                        setSelectedDate(date)
+                                        setSelectedClass(cls);
+                                        setSelectedDate(date);
                                       }
                                     }}
                                   >
@@ -815,18 +655,18 @@ export default function AttendanceTracking() {
                                       <div>
                                         <div className="font-medium">{getSubjectName(cls.subject)}</div>
                                         <div className="text-sm text-gray-400">
-                                          {cls.start_time} - {cls.end_time} • Room {cls.classe}
+                                          {cls.start_time} - {cls.end_time} • {getClasseName(cls.classe)}
                                         </div>
                                       </div>
                                     </div>
 
                                     <div className="flex items-center gap-2">
                                       <div
-                                        className={`px-3 py-1 rounded-full flex items-center gap-1 ${
-                                          status ? getStatusColor(status) : "bg-[#0f172a] text-gray-400"
-                                        }`}
+                                        className={`px-3 py-1 rounded-full flex items-center gap-1 ${getStatusColor(
+                                          status,
+                                        )}`}
                                       >
-                                        {status ? getStatusIcon(status) : <Clock className="h-4 w-4" />}
+                                        {getStatusIcon(status)}
                                         <span className="text-sm">
                                           {status ? status.charAt(0).toUpperCase() + status.slice(1) : "Not Set"}
                                         </span>
@@ -835,8 +675,8 @@ export default function AttendanceTracking() {
                                         <button
                                           className="text-red-400 hover:text-red-600"
                                           onClick={(e) => {
-                                            e.stopPropagation()
-                                            setConfirmDelete({ classId: cls.id, date })
+                                            e.stopPropagation();
+                                            setConfirmDelete({ classId: cls.id, date });
                                           }}
                                         >
                                           <Trash2 className="h-4 w-4" />
@@ -844,7 +684,7 @@ export default function AttendanceTracking() {
                                       )}
                                     </div>
                                   </div>
-                                )
+                                );
                               })}
                             </div>
                           ) : (
@@ -853,7 +693,7 @@ export default function AttendanceTracking() {
                             </div>
                           )}
                         </div>
-                      )
+                      );
                     })}
                   </div>
 
@@ -864,38 +704,12 @@ export default function AttendanceTracking() {
                         <div>
                           <div className="font-medium text-lg">{getSubjectName(selectedClass.subject)}</div>
                           <div className="text-sm text-gray-400">
-                            {getDayName(selectedDate.getDay())}, {formatDate(selectedDate)} • {selectedClass.start_time}{" "}
-                            - {selectedClass.end_time} • Room {selectedClass.classe}
+                            {getDayName(selectedDate.getDay())}, {formatDate(selectedDate)} •{" "}
+                            {selectedClass.start_time} - {selectedClass.end_time} •{" "}
+                            {getClasseName(selectedClass.classe)}
                           </div>
                         </div>
-                        <div className="flex items-center gap-2">
-                          <div className="text-sm text-gray-400">Set attendance status</div>
-                          <button
-                            onClick={refreshAttendanceData}
-                            className="p-1 rounded-full bg-[#0f172a] hover:bg-[#172033]"
-                            title="Refresh attendance data"
-                          >
-                            <svg
-                              xmlns="http://www.w3.org/2000/svg"
-                              className="h-4 w-4"
-                              viewBox="0 0 24 24"
-                              fill="none"
-                              stroke="currentColor"
-                              strokeWidth="2"
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
-                            >
-                              <path d="M21 2v6h-6"></path>
-                              <path d="M3 12a9 9 0 0 1 15-6.7L21 8"></path>
-                              <path d="M3 22v-6h6"></path>
-                              <path d="M21 12a9 9 0 0 1-15 6.7L3 16"></path>
-                            </svg>
-                          </button>
-                        </div>
                       </div>
-
-                      {/* Debug info */}
-                      {debugAttendance()}
 
                       <div className="flex gap-4">
                         <button
@@ -1001,8 +815,8 @@ export default function AttendanceTracking() {
             <div className="bg-[#1e293b] p-6 rounded-xl max-w-md w-full">
               <h3 className="text-lg font-medium mb-4">Confirm Deletion</h3>
               <p className="mb-6">
-                Are you sure you want to delete the attendance record for {getSubjectName(confirmDelete.classId)} on{" "}
-                {formatDate(confirmDelete.date)}?
+                Are you sure you want to delete the attendance record for{" "}
+                {getSubjectName(selectedClass?.subject)} on {formatDate(confirmDelete.date)}?
               </p>
               <div className="flex justify-end gap-3">
                 <button
@@ -1023,6 +837,5 @@ export default function AttendanceTracking() {
         )}
       </main>
     </div>
-  )
+  );
 }
-

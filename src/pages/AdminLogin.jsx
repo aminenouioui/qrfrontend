@@ -11,18 +11,25 @@ const AdminLogin = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
-      const response = await axios.post('http://localhost:8000/api/admin/login/', {
+      const response = await axios.post('http://localhost:8000/auth/login/', {
         username,
         password,
+      }, {
+        headers: {
+          'Content-Type': 'application/json'
+        }
       });
       if (response.status === 200) {
-        navigate('/admin/dashboard'); // Redirect to admin dashboard
+        localStorage.setItem('access_token', response.data.access);
+        localStorage.setItem('refresh_token', response.data.refresh);
+        localStorage.setItem('username', response.data.username);
+        navigate('/admin/dashboard');
       }
     } catch (err) {
       setError('Invalid credentials');
+      console.error(err.response ? err.response.data : err.message);
     }
   };
-
   return (
     <div className="flex items-center justify-center min-h-screen bg-gradient-to-br from-blue-50 to-purple-50">
       <div className="bg-white p-8 rounded-lg shadow-lg w-full max-w-md">

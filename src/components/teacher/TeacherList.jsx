@@ -5,7 +5,7 @@ import { Search, Plus, Filter, ChevronLeft, ChevronRight, Download, Trash2, Edit
 import { Canvas } from "@react-three/fiber";
 import { OrbitControls, PerspectiveCamera, Environment, Html } from "@react-three/drei";
 import { useNavigate } from "react-router-dom";
-import axios from "axios";
+import api from "../api"; // Import the configured API instance
 
 // Add Teacher Modal Component
 function AddTeacherModal({ isOpen, onClose, onAddTeacher, levels, subjects }) {
@@ -76,13 +76,13 @@ function AddTeacherModal({ isOpen, onClose, onAddTeacher, levels, subjects }) {
     newTeacher.levels.forEach((levelId) => formData.append("levels", levelId));
 
     try {
-      const response = await axios.post("http://localhost:8000/add_teacher/", formData, {
+      const response = await api.post("api/teachers/add/", formData, {
         headers: { "Content-Type": "multipart/form-data" },
       });
       onAddTeacher(response.data);
       onClose();
     } catch (err) {
-      setError(err.response?.data?.error || "Failed to add teacher.");
+      setError(err.response?.data?.message || "Failed to add teacher.");
     }
   };
 
@@ -117,8 +117,7 @@ function AddTeacherModal({ isOpen, onClose, onAddTeacher, levels, subjects }) {
                     onClick={() => fileInputRef.current.click()}
                     className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-3 py-2 rounded-lg text-sm"
                   >
-                    <Upload size={16} />
-                    Upload Photo
+                    <Upload size={16} /> Upload Photo
                   </button>
                   <input
                     type="file"
@@ -318,13 +317,13 @@ function EditTeacherModal({ isOpen, onClose, onEditTeacher, teacher, levels, sub
     editedTeacher.levels.forEach((levelId) => formData.append("levels", levelId));
 
     try {
-      const response = await axios.put(`http://localhost:8000/edit_teacher/${editedTeacher.id}/`, formData, {
+      const response = await api.put(`api/teachers/edit/${editedTeacher.id}/`, formData, {
         headers: { "Content-Type": "multipart/form-data" },
       });
       onEditTeacher(response.data);
       onClose();
     } catch (err) {
-      setError(err.response?.data?.error || "Failed to edit teacher.");
+      setError(err.response?.data?.message || "Failed to edit teacher.");
     }
   };
 
@@ -359,8 +358,7 @@ function EditTeacherModal({ isOpen, onClose, onEditTeacher, teacher, levels, sub
                     onClick={() => fileInputRef.current.click()}
                     className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-3 py-2 rounded-lg text-sm"
                   >
-                    <Upload size={16} />
-                    Change Photo
+                    <Upload size={16} /> Change Photo
                   </button>
                   <input
                     type="file"
@@ -617,10 +615,15 @@ export default function TeacherList() {
   useEffect(() => {
     const fetchData = async () => {
       try {
+        setLoading(true);
         const [levelsResponse, subjectsResponse, teachersResponse] = await Promise.all([
-          axios.get("http://localhost:8000/levels/"),
-          axios.get("http://localhost:8000/subjects/"),
-          axios.get("http://localhost:8000/list_teacher/"),
+          api.get("api/levels/list/"), // Fetch levels from LevelListView
+          api.get("api/subjects/list/"), // Fetch subjects
+          api.get("api/teachers/list/", {
+            params: {
+              level: selectedLevel !== "All" ? [selectedLevel] : null, // Pass level as an array for getlist
+            },
+          }), // Fetch teachers with level filter
         ]);
         setLevels(levelsResponse.data);
         setSubjects(subjectsResponse.data);
@@ -632,7 +635,7 @@ export default function TeacherList() {
       }
     };
     fetchData();
-  }, []);
+  }, [selectedLevel]);
 
   const handleAddTeacher = (newTeacher) => {
     setTeachers((prev) => [...prev, newTeacher]);
@@ -650,7 +653,7 @@ export default function TeacherList() {
 
   const handleDelete = async (teacherId) => {
     try {
-      await axios.delete(`http://localhost:8000/delete_teacher/${teacherId}/`);
+      await api.delete(`api/teachers/delete/${teacherId}/`);
       setTeachers((prev) => prev.filter((t) => t.id !== teacherId));
     } catch (err) {
       setError("Failed to delete teacher.");
@@ -668,8 +671,7 @@ export default function TeacherList() {
       teacher.nom.toLowerCase().includes(searchQuery.toLowerCase()) ||
       teacher.prenom.toLowerCase().includes(searchQuery.toLowerCase()) ||
       teacher.id.toString().includes(searchQuery);
-    const matchesLevel = selectedLevel === "All" || teacher.levels.includes(Number(selectedLevel));
-    return matchesSearch && matchesLevel;
+    return matchesSearch;
   });
 
   const teachersPerPage = 1;
@@ -787,7 +789,7 @@ export default function TeacherList() {
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Prénom</th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Subject</th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Levels</th>
-                <th className="px Stevensu6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Email</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Email</th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Date de Naissance</th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Numéro</th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Adresse</th>
@@ -812,7 +814,7 @@ export default function TeacherList() {
                     <td className="px-6 py-4 whitespace-nowrap text-sm">{teacher.nom}</td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm">{teacher.prenom}</td>
                     <td className="px-6 py-4 whitespace-nowrap"><span className="px-2 py-1 bg-purple-500 rounded-md text-xs">{subjectName}</span></td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm">{levelNames}</td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm">{levelNames || "N/A"}</td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm">{teacher.mail}</td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm">{teacher.date_naissance || "N/A"}</td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm">{teacher.numero}</td>

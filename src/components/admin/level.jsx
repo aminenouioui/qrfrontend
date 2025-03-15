@@ -1,145 +1,103 @@
-"use client"
+"use client";
 
-import { useState, useEffect } from "react"
-import { ArrowLeft, Search, Plus, Edit, Trash2, X, Save, AlertCircle } from "lucide-react"
-import axios from "axios"
+import { useState, useEffect } from "react";
+import { ArrowLeft, Search, Plus, Trash2, X, Save, AlertCircle } from "lucide-react";
+import api from "../api"; // Adjust path: src/components/Levels.jsx to src/api.js
 
 export default function Levels() {
-  const [searchQuery, setSearchQuery] = useState("")
-  const [selectedLevel, setSelectedLevel] = useState(null)
-  const [isAddingLevel, setIsAddingLevel] = useState(false)
-  const [isEditingLevel, setIsEditingLevel] = useState(false)
-  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
-  const [levelsData, setLevelsData] = useState([])
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState(null)
+  const [searchQuery, setSearchQuery] = useState("");
+  const [selectedLevel, setSelectedLevel] = useState(null);
+  const [isAddingLevel, setIsAddingLevel] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [levelsData, setLevelsData] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
 
-  // Form state for adding/editing levels
   const [formData, setFormData] = useState({
-    id: "",
-    level: "",
-  })
-
-  const API_URL = "http://localhost:8000/" // Adjust to your Django server URL
+    level: "", // Only `level` is needed per LevelSerializer
+  });
 
   // Fetch levels from the backend
   useEffect(() => {
     const fetchLevels = async () => {
       try {
-        const response = await axios.get(`${API_URL}levels/`)
-        console.log("API Response from levels:", response.data) // Debug log
-        const data = Array.isArray(response.data) ? response.data : []
-        setLevelsData(data)
-        setLoading(false)
+        const response = await api.get("/api/levels/list/");
+        console.log("API Response from levels:", response.data);
+        setLevelsData(response.data);
+        setLoading(false);
       } catch (err) {
-        console.error("Error fetching levels:", err)
-        setError("Failed to load levels. Please try again later.")
-        setLevelsData([])
-        setLoading(false)
+        console.error("Error fetching levels:", err);
+        setError(err.response?.data?.detail || "Failed to load levels. Please try again later.");
+        setLevelsData([]);
+        setLoading(false);
       }
-    }
-    fetchLevels()
-  }, [])
+    };
+    fetchLevels();
+  }, []);
 
   // Filter levels based on search
   const filteredLevels = levelsData.filter(
     (level) => searchQuery === "" || level.level.toLowerCase().includes(searchQuery.toLowerCase())
-  )
+  );
 
   // Handle form input changes
   const handleInputChange = (e) => {
-    const { name, value } = e.target
+    const { name, value } = e.target;
     setFormData({
       ...formData,
       [name]: value,
-    })
-  }
+    });
+  };
 
   // Initialize form for adding a new level
   const handleAddLevel = () => {
     setFormData({
-      id: "",
       level: "",
-    })
-    setIsAddingLevel(true)
-    setIsEditingLevel(false)
-    setShowDeleteConfirm(false)
-    setSelectedLevel(null)
-    setError(null)
-  }
-
-  // Initialize form for editing an existing level
-  const handleEditLevel = (level) => {
-    setFormData({ ...level })
-    setIsEditingLevel(true)
-    setIsAddingLevel(false)
-    setShowDeleteConfirm(false)
-    setSelectedLevel(level)
-    setError(null)
-  }
+    });
+    setIsAddingLevel(true);
+    setShowDeleteConfirm(false);
+    setSelectedLevel(null);
+    setError(null);
+  };
 
   // Save a new level
   const handleSaveNewLevel = async () => {
     try {
-      const response = await axios.post(`${API_URL}add-level/`, formData)
-      setLevelsData([...levelsData, response.data])
-      setIsAddingLevel(false)
-      resetForm()
-      setError(null)
+      const response = await api.post("/api/levels/add/", formData);
+      setLevelsData([...levelsData, response.data]);
+      setIsAddingLevel(false);
+      setFormData({ level: "" });
+      setError(null);
     } catch (err) {
-      console.error("Error adding level:", err)
-      setError(err.response?.data?.error || "Failed to add level. Please try again.")
+      console.error("Error adding level:", err);
+      setError(err.response?.data?.level?.[0] || "Failed to add level. Please try again.");
     }
-  }
+  };
 
-  // Update an existing level (placeholder until endpoint is added)
-  const handleUpdateLevel = async () => {
-    if (!selectedLevel) return
-    try {
-      const response = await axios.put(`${API_URL}levels/edit/${formData.id}/`, formData)
-      setLevelsData(levelsData.map((level) => (level.id === formData.id ? response.data : level)))
-      setIsEditingLevel(false)
-      setSelectedLevel(null)
-      setError(null)
-    } catch (err) {
-      console.error("Error updating level:", err)
-      setError("Edit functionality not yet implemented on the backend.")
-    }
-  }
-
-  // Delete a level (placeholder until endpoint is added)
+  // Delete a level
   const handleDeleteLevel = async () => {
-    if (!selectedLevel) return
+    if (!selectedLevel) return;
     try {
-      await axios.delete(`${API_URL}levels/delete/${selectedLevel.id}/`)
-      setLevelsData(levelsData.filter((level) => level.id !== selectedLevel.id))
-      setShowDeleteConfirm(false)
-      setSelectedLevel(null)
-      setError(null)
+      await api.delete(`/api/levels/delete/${selectedLevel.id}/`);
+      setLevelsData(levelsData.filter((level) => level.id !== selectedLevel.id));
+      setShowDeleteConfirm(false);
+      setSelectedLevel(null);
+      setError(null);
     } catch (err) {
-      console.error("Error deleting level:", err)
-      setError("Delete functionality not yet implemented on the backend.")
+      console.error("Error deleting level:", err);
+      setError(err.response?.data?.detail || "Failed to delete level.");
     }
-  }
+  };
 
   // Cancel form
   const handleCancelForm = () => {
-    setIsAddingLevel(false)
-    setIsEditingLevel(false)
-    setShowDeleteConfirm(false)
-    setError(null)
-  }
-
-  // Reset form to default values
-  const resetForm = () => {
-    setFormData({
-      id: "",
-      level: "",
-    })
-  }
+    setIsAddingLevel(false);
+    setShowDeleteConfirm(false);
+    setError(null);
+  };
 
   if (loading) {
-    return <div className="min-h-screen bg-[#111827] text-white p-6">Loading...</div>
+    return <div className="min-h-screen bg-[#111827] text-white p-6">Loading...</div>;
   }
 
   return (
@@ -207,20 +165,11 @@ export default function Levels() {
                 <h3 className="text-xl font-bold">{level.level}</h3>
                 <div className="flex gap-2">
                   <button
-                    className="p-2 text-blue-400 hover:bg-blue-400/10 rounded-full"
-                    onClick={(e) => {
-                      e.stopPropagation()
-                      handleEditLevel(level)
-                    }}
-                  >
-                    <Edit size={16} />
-                  </button>
-                  <button
                     className="p-2 text-red-400 hover:bg-red-400/10 rounded-full"
                     onClick={(e) => {
-                      e.stopPropagation()
-                      setSelectedLevel(level)
-                      setShowDeleteConfirm(true)
+                      e.stopPropagation();
+                      setSelectedLevel(level);
+                      setShowDeleteConfirm(true);
                     }}
                   >
                     <Trash2 size={16} />
@@ -238,11 +187,11 @@ export default function Levels() {
           </div>
         )}
 
-        {/* Add/Edit Level Form */}
-        {(isAddingLevel || isEditingLevel) && (
+        {/* Add Level Form */}
+        {isAddingLevel && (
           <div className="bg-[#1e293b] rounded-xl overflow-hidden mt-6">
             <div className="p-4 border-b border-gray-800 flex justify-between items-center">
-              <h3 className="font-medium text-lg">{isAddingLevel ? "Add New Level" : "Edit Level"}</h3>
+              <h3 className="font-medium text-lg">Add New Level</h3>
               <button className="p-2 text-gray-400 hover:text-white" onClick={handleCancelForm}>
                 <X className="h-5 w-5" />
               </button>
@@ -268,10 +217,10 @@ export default function Levels() {
                 </button>
                 <button
                   className="px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded-lg flex items-center gap-2"
-                  onClick={isAddingLevel ? handleSaveNewLevel : handleUpdateLevel}
+                  onClick={handleSaveNewLevel}
                 >
                   <Save className="h-4 w-4" />
-                  <span>{isAddingLevel ? "Add Level" : "Update Level"}</span>
+                  <span>Add Level</span>
                 </button>
               </div>
             </div>
@@ -309,5 +258,5 @@ export default function Levels() {
         )}
       </main>
     </div>
-  )
+  );
 }

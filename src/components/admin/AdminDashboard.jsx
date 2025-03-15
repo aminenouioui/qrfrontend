@@ -1,7 +1,8 @@
 "use client";
+
 import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
-import axios from "axios";
+import api from "../api"; // Adjust path: src/components/Dashboard.jsx to src/api.js
 import {
   Users,
   GraduationCap,
@@ -28,12 +29,10 @@ function Dashboard() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  const BASE_URL = "http://localhost:8000"; // Adjust if your backend runs elsewhere
-
   useEffect(() => {
     const fetchStats = async () => {
       try {
-        const response = await axios.get(`${BASE_URL}/api/dashboard-stats/`);
+        const response = await api.get("/api/dashboard-stats/");
         setStats({
           students: {
             total: response.data.students.total,
@@ -56,7 +55,7 @@ function Dashboard() {
         });
         setLoading(false);
       } catch (err) {
-        setError(err.response?.data?.error || "Failed to load statistics");
+        setError(err.response?.data?.detail || "Failed to load statistics");
         setLoading(false);
       }
     };

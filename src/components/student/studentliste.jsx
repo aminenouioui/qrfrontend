@@ -1,11 +1,9 @@
-"use client";
-
 import { useState, useRef, useEffect } from "react";
 import { Search, Plus, Filter, ChevronLeft, ChevronRight, Download, Trash2, Edit, Eye, X, Upload } from "lucide-react";
 import { Canvas } from "@react-three/fiber";
 import { OrbitControls, PerspectiveCamera, Environment, Html } from "@react-three/drei";
-import { useNavigate } from "react-router-dom";
-import axios from "axios";
+import { useNavigate } from "react-router-dom"; // Replaced useRouter with useNavigate
+import api from "../api"; // Adjust path based on your structure
 
 // Add Student Modal Component
 function AddStudentModal({ isOpen, onClose, onAddStudent, levels }) {
@@ -71,13 +69,13 @@ function AddStudentModal({ isOpen, onClose, onAddStudent, levels }) {
     }
 
     try {
-      const response = await axios.post("/add/", formData, {
+      const response = await api.post("/api/students/add/", formData, {
         headers: { "Content-Type": "multipart/form-data" },
       });
       onAddStudent(response.data);
       onClose();
     } catch (err) {
-      setError(err.response?.data?.error || "Failed to add student.");
+      setError(err.response?.data?.detail || "Failed to add student.");
     }
   };
 
@@ -99,118 +97,43 @@ function AddStudentModal({ isOpen, onClose, onAddStudent, levels }) {
               <label className="block text-sm font-medium text-gray-300 mb-1">Photo</label>
               <div className="flex items-center gap-4">
                 <div className="relative w-24 h-24 bg-[#2a3a4f] rounded-lg overflow-hidden">
-                  <img
-                    src={previewUrl}
-                    alt="Student preview"
-                    className="w-full h-full object-cover"
-                    onError={(e) => (e.target.src = "/media/placeholder.svg")}
-                  />
+                  <img src={previewUrl} alt="Preview" className="w-full h-full object-cover" onError={(e) => (e.target.src = "/media/placeholder.svg")} />
                 </div>
-                <div>
-                  <button
-                    type="button"
-                    onClick={() => fileInputRef.current.click()}
-                    className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-3 py-2 rounded-lg text-sm"
-                  >
-                    <Upload size={16} />
-                    Upload Photo
-                  </button>
-                  <input
-                    type="file"
-                    ref={fileInputRef}
-                    onChange={handlePhotoChange}
-                    accept="image/*"
-                    className="hidden"
-                  />
-                </div>
+                <button type="button" onClick={() => fileInputRef.current.click()} className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-3 py-2 rounded-lg text-sm">
+                  <Upload size={16} /> Upload Photo
+                </button>
+                <input type="file" ref={fileInputRef} onChange={handlePhotoChange} accept="image/*" className="hidden" />
               </div>
             </div>
             <div className="grid grid-cols-2 gap-4 mb-4">
               <div>
                 <label htmlFor="prenom" className="block text-sm font-medium text-gray-300 mb-1">Prénom</label>
-                <input
-                  type="text"
-                  id="prenom"
-                  name="prenom"
-                  value={newStudent.prenom}
-                  onChange={handleInputChange}
-                  required
-                  className="w-full bg-[#273549] border border-gray-700 rounded-lg px-3 py-2 text-white"
-                  placeholder="First Name"
-                />
+                <input type="text" id="prenom" name="prenom" value={newStudent.prenom} onChange={handleInputChange} required className="w-full bg-[#273549] border border-gray-700 rounded-lg px-3 py-2 text-white" placeholder="First Name" />
               </div>
               <div>
                 <label htmlFor="nom" className="block text-sm font-medium text-gray-300 mb-1">Nom</label>
-                <input
-                  type="text"
-                  id="nom"
-                  name="nom"
-                  value={newStudent.nom}
-                  onChange={handleInputChange}
-                  required
-                  className="w-full bg-[#273549] border border-gray-700 rounded-lg px-3 py-2 text-white"
-                  placeholder="Last Name"
-                />
+                <input type="text" id="nom" name="nom" value={newStudent.nom} onChange={handleInputChange} required className="w-full bg-[#273549] border border-gray-700 rounded-lg px-3 py-2 text-white" placeholder="Last Name" />
               </div>
             </div>
             <div className="mb-4">
               <label htmlFor="date_naissance" className="block text-sm font-medium text-gray-300 mb-1">Date de Naissance</label>
-              <input
-                type="date"
-                id="date_naissance"
-                name="date_naissance"
-                value={newStudent.date_naissance}
-                onChange={handleInputChange}
-                className="w-full bg-[#273549] border border-gray-700 rounded-lg px-3 py-2 text-white"
-              />
+              <input type="date" id="date_naissance" name="date_naissance" value={newStudent.date_naissance} onChange={handleInputChange} className="w-full bg-[#273549] border border-gray-700 rounded-lg px-3 py-2 text-white" />
             </div>
             <div className="mb-4">
               <label htmlFor="adresse" className="block text-sm font-medium text-gray-300 mb-1">Adresse</label>
-              <input
-                type="text"
-                id="adresse"
-                name="adresse"
-                value={newStudent.adresse}
-                onChange={handleInputChange}
-                className="w-full bg-[#273549] border border-gray-700 rounded-lg px-3 py-2 text-white"
-                placeholder="Address"
-              />
+              <input type="text" id="adresse" name="adresse" value={newStudent.adresse} onChange={handleInputChange} className="w-full bg-[#273549] border border-gray-700 rounded-lg px-3 py-2 text-white" placeholder="Address" />
             </div>
             <div className="mb-4">
               <label htmlFor="mail" className="block text-sm font-medium text-gray-300 mb-1">Email</label>
-              <input
-                type="email"
-                id="mail"
-                name="mail"
-                value={newStudent.mail}
-                onChange={handleInputChange}
-                required
-                className="w-full bg-[#273549] border border-gray-700 rounded-lg px-3 py-2 text-white"
-                placeholder="Email"
-              />
+              <input type="email" id="mail" name="mail" value={newStudent.mail} onChange={handleInputChange} required className="w-full bg-[#273549] border border-gray-700 rounded-lg px-3 py-2 text-white" placeholder="Email" />
             </div>
             <div className="mb-4">
               <label htmlFor="numero" className="block text-sm font-medium text-gray-300 mb-1">Numéro</label>
-              <input
-                type="text"
-                id="numero"
-                name="numero"
-                value={newStudent.numero}
-                onChange={handleInputChange}
-                required
-                className="w-full bg-[#273549] border border-gray-700 rounded-lg px-3 py-2 text-white"
-                placeholder="Phone Number"
-              />
+              <input type="text" id="numero" name="numero" value={newStudent.numero} onChange={handleInputChange} required className="w-full bg-[#273549] border border-gray-700 rounded-lg px-3 py-2 text-white" placeholder="Phone Number" />
             </div>
             <div className="mb-6">
               <label htmlFor="level" className="block text-sm font-medium text-gray-300 mb-1">Level</label>
-              <select
-                id="level"
-                name="level"
-                value={newStudent.level}
-                onChange={handleInputChange}
-                className="w-full bg-[#273549] border border-gray-700 rounded-lg px-3 py-2 text-white"
-              >
+              <select id="level" name="level" value={newStudent.level} onChange={handleInputChange} className="w-full bg-[#273549] border border-gray-700 rounded-lg px-3 py-2 text-white">
                 {levels.map((level) => (
                   <option key={level.id} value={level.id}>{level.level}</option>
                 ))}
@@ -218,13 +141,7 @@ function AddStudentModal({ isOpen, onClose, onAddStudent, levels }) {
             </div>
             <div className="mb-6">
               <label htmlFor="admission_s" className="block text-sm font-medium text-gray-300 mb-1">Admission Status</label>
-              <select
-                id="admission_s"
-                name="admission_s"
-                value={newStudent.admission_s}
-                onChange={handleInputChange}
-                className="w-full bg-[#273549] border border-gray-700 rounded-lg px-3 py-2 text-white"
-              >
+              <select id="admission_s" name="admission_s" value={newStudent.admission_s} onChange={handleInputChange} className="w-full bg-[#273549] border border-gray-700 rounded-lg px-3 py-2 text-white">
                 <option value="att">En Attente</option>
                 <option value="acc">Accepté</option>
                 <option value="ref">Refusé</option>
@@ -300,18 +217,18 @@ function EditStudentModal({ isOpen, onClose, onEditStudent, student, levels }) {
     formData.append("mail", editedStudent.mail);
     formData.append("numero", editedStudent.numero);
     formData.append("admission_s", editedStudent.admission_s);
-    if (fileInputRef.current?.files[0]) {
-      formData.append("photo", fileInputRef.current.files[0]);
+    if (editedStudent.photo) {
+      formData.append("photo", editedStudent.photo);
     }
 
     try {
-      const response = await axios.put(`/edit/${student.id}/`, formData, {
+      const response = await api.put(`/api/students/edit/${student.id}/`, formData, {
         headers: { "Content-Type": "multipart/form-data" },
       });
       onEditStudent(response.data);
       onClose();
     } catch (err) {
-      setError(err.response?.data?.error || "Failed to edit student.");
+      setError(err.response?.data?.detail || "Failed to edit student.");
     }
   };
 
@@ -333,118 +250,43 @@ function EditStudentModal({ isOpen, onClose, onEditStudent, student, levels }) {
               <label className="block text-sm font-medium text-gray-300 mb-1">Photo</label>
               <div className="flex items-center gap-4">
                 <div className="relative w-24 h-24 bg-[#2a3a4f] rounded-lg overflow-hidden">
-                  <img
-                    src={previewUrl}
-                    alt="Student preview"
-                    className="w-full h-full object-cover"
-                    onError={(e) => (e.target.src = "/media/placeholder.svg")}
-                  />
+                  <img src={previewUrl} alt="Preview" className="w-full h-full object-cover" onError={(e) => (e.target.src = "/media/placeholder.svg")} />
                 </div>
-                <div>
-                  <button
-                    type="button"
-                    onClick={() => fileInputRef.current.click()}
-                    className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-3 py-2 rounded-lg text-sm"
-                  >
-                    <Upload size={16} />
-                    Change Photo
-                  </button>
-                  <input
-                    type="file"
-                    ref={fileInputRef}
-                    onChange={handlePhotoChange}
-                    accept="image/*"
-                    className="hidden"
-                  />
-                </div>
+                <button type="button" onClick={() => fileInputRef.current.click()} className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-3 py-2 rounded-lg text-sm">
+                  <Upload size={16} /> Change Photo
+                </button>
+                <input type="file" ref={fileInputRef} onChange={handlePhotoChange} accept="image/*" className="hidden" />
               </div>
             </div>
             <div className="grid grid-cols-2 gap-4 mb-4">
               <div>
                 <label htmlFor="prenom" className="block text-sm font-medium text-gray-300 mb-1">Prénom</label>
-                <input
-                  type="text"
-                  id="prenom"
-                  name="prenom"
-                  value={editedStudent.prenom}
-                  onChange={handleInputChange}
-                  required
-                  className="w-full bg-[#273549] border border-gray-700 rounded-lg px-3 py-2 text-white"
-                  placeholder="First Name"
-                />
+                <input type="text" id="prenom" name="prenom" value={editedStudent.prenom} onChange={handleInputChange} required className="w-full bg-[#273549] border border-gray-700 rounded-lg px-3 py-2 text-white" placeholder="First Name" />
               </div>
               <div>
                 <label htmlFor="nom" className="block text-sm font-medium text-gray-300 mb-1">Nom</label>
-                <input
-                  type="text"
-                  id="nom"
-                  name="nom"
-                  value={editedStudent.nom}
-                  onChange={handleInputChange}
-                  required
-                  className="w-full bg-[#273549] border border-gray-700 rounded-lg px-3 py-2 text-white"
-                  placeholder="Last Name"
-                />
+                <input type="text" id="nom" name="nom" value={editedStudent.nom} onChange={handleInputChange} required className="w-full bg-[#273549] border border-gray-700 rounded-lg px-3 py-2 text-white" placeholder="Last Name" />
               </div>
             </div>
             <div className="mb-4">
               <label htmlFor="date_naissance" className="block text-sm font-medium text-gray-300 mb-1">Date de Naissance</label>
-              <input
-                type="date"
-                id="date_naissance"
-                name="date_naissance"
-                value={editedStudent.date_naissance}
-                onChange={handleInputChange}
-                className="w-full bg-[#273549] border border-gray-700 rounded-lg px-3 py-2 text-white"
-              />
+              <input type="date" id="date_naissance" name="date_naissance" value={editedStudent.date_naissance} onChange={handleInputChange} className="w-full bg-[#273549] border border-gray-700 rounded-lg px-3 py-2 text-white" />
             </div>
             <div className="mb-4">
               <label htmlFor="adresse" className="block text-sm font-medium text-gray-300 mb-1">Adresse</label>
-              <input
-                type="text"
-                id="adresse"
-                name="adresse"
-                value={editedStudent.adresse}
-                onChange={handleInputChange}
-                className="w-full bg-[#273549] border border-gray-700 rounded-lg px-3 py-2 text-white"
-                placeholder="Address"
-              />
+              <input type="text" id="adresse" name="adresse" value={editedStudent.adresse} onChange={handleInputChange} className="w-full bg-[#273549] border border-gray-700 rounded-lg px-3 py-2 text-white" placeholder="Address" />
             </div>
             <div className="mb-4">
               <label htmlFor="mail" className="block text-sm font-medium text-gray-300 mb-1">Email</label>
-              <input
-                type="email"
-                id="mail"
-                name="mail"
-                value={editedStudent.mail}
-                onChange={handleInputChange}
-                required
-                className="w-full bg-[#273549] border border-gray-700 rounded-lg px-3 py-2 text-white"
-                placeholder="Email"
-              />
+              <input type="email" id="mail" name="mail" value={editedStudent.mail} onChange={handleInputChange} required className="w-full bg-[#273549] border border-gray-700 rounded-lg px-3 py-2 text-white" placeholder="Email" />
             </div>
             <div className="mb-4">
               <label htmlFor="numero" className="block text-sm font-medium text-gray-300 mb-1">Numéro</label>
-              <input
-                type="text"
-                id="numero"
-                name="numero"
-                value={editedStudent.numero}
-                onChange={handleInputChange}
-                required
-                className="w-full bg-[#273549] border border-gray-700 rounded-lg px-3 py-2 text-white"
-                placeholder="Phone Number"
-              />
+              <input type="text" id="numero" name="numero" value={editedStudent.numero} onChange={handleInputChange} required className="w-full bg-[#273549] border border-gray-700 rounded-lg px-3 py-2 text-white" placeholder="Phone Number" />
             </div>
             <div className="mb-6">
               <label htmlFor="level" className="block text-sm font-medium text-gray-300 mb-1">Level</label>
-              <select
-                id="level"
-                name="level"
-                value={editedStudent.level}
-                onChange={handleInputChange}
-                className="w-full bg-[#273549] border border-gray-700 rounded-lg px-3 py-2 text-white"
-              >
+              <select id="level" name="level" value={editedStudent.level} onChange={handleInputChange} className="w-full bg-[#273549] border border-gray-700 rounded-lg px-3 py-2 text-white">
                 {levels.map((level) => (
                   <option key={level.id} value={level.id}>{level.level}</option>
                 ))}
@@ -452,13 +294,7 @@ function EditStudentModal({ isOpen, onClose, onEditStudent, student, levels }) {
             </div>
             <div className="mb-6">
               <label htmlFor="admission_s" className="block text-sm font-medium text-gray-300 mb-1">Admission Status</label>
-              <select
-                id="admission_s"
-                name="admission_s"
-                value={editedStudent.admission_s}
-                onChange={handleInputChange}
-                className="w-full bg-[#273549] border border-gray-700 rounded-lg px-3 py-2 text-white"
-              >
+              <select id="admission_s" name="admission_s" value={editedStudent.admission_s} onChange={handleInputChange} className="w-full bg-[#273549] border border-gray-700 rounded-lg px-3 py-2 text-white">
                 <option value="att">En Attente</option>
                 <option value="acc">Accepté</option>
                 <option value="ref">Refusé</option>
@@ -494,12 +330,7 @@ function StudentCard({ student, index, totalStudents, onDelete, onEdit, levels }
       </mesh>
       <Html position={[-1.4, 0, 0.08]} transform>
         <div className="w-[100px] h-[150px] rounded-lg overflow-hidden ring-2 ring-blue-500/30">
-          <img
-            src={student.photo || "/media/placeholder.svg"}
-            alt={`${student.prenom} ${student.nom}`}
-            className="w-full h-full object-cover"
-            onError={(e) => (e.target.src = "/media/placeholder.svg")}
-          />
+          <img src={student.photo || "/media/placeholder.svg"} alt={`${student.prenom} ${student.nom}`} className="w-full h-full object-cover" onError={(e) => (e.target.src = "/media/placeholder.svg")} />
         </div>
       </Html>
       <Html position={[0.5, 0, 0.1]} transform scale={0.4} rotation={[0, 0, 0]}>
@@ -518,22 +349,10 @@ function StudentCard({ student, index, totalStudents, onDelete, onEdit, levels }
               </span>
             </div>
             <div className="flex gap-3 mt-4">
-              <button 
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onEdit(student);
-                }} 
-                className="p-2 bg-green-500/20 border border-green-500/30 rounded-full hover:bg-green-500/30 transition-colors"
-              >
+              <button onClick={(e) => { e.stopPropagation(); onEdit(student); }} className="p-2 bg-green-500/20 border border-green-500/30 rounded-full hover:bg-green-500/30 transition-colors">
                 <Edit size={16} />
               </button>
-              <button 
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onDelete(student.id);
-                }} 
-                className="p-2 bg-red-500/20 border border-red-500/30 rounded-full hover:bg-red-500/30 transition-colors"
-              >
+              <button onClick={(e) => { e.stopPropagation(); onDelete(student.id); }} className="p-2 bg-red-500/20 border border-red-500/30 rounded-full hover:bg-red-500/30 transition-colors">
                 <Trash2 size={16} />
               </button>
             </div>
@@ -557,15 +376,7 @@ function StudentScene({ students, currentPage, studentsPerPage, onDelete, onEdit
       <pointLight position={[-10, -10, -10]} color="#3b82f6" intensity={0.5} />
       <Environment preset="night" />
       {students.map((student, index) => (
-        <StudentCard
-          key={student.id}
-          student={student}
-          index={index + (currentPage - 1) * studentsPerPage}
-          totalStudents={students.length}
-          onDelete={onDelete}
-          onEdit={onEdit}
-          levels={levels}
-        />
+        <StudentCard key={student.id} student={student} index={index + (currentPage - 1) * studentsPerPage} totalStudents={students.length} onDelete={onDelete} onEdit={onEdit} levels={levels} />
       ))}
       <OrbitControls enableZoom={false} enablePan={false} minPolarAngle={Math.PI / 2.5} maxPolarAngle={Math.PI / 2.5} rotateSpeed={0.5} />
     </Canvas>
@@ -594,20 +405,20 @@ export default function StudentList() {
   const [studentToEdit, setStudentToEdit] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const navigate = useNavigate();
+  const navigate = useNavigate(); // Replaced useRouter with useNavigate
 
   useEffect(() => {
     const fetchData = async () => {
       try {
         const [levelsResponse, studentsResponse] = await Promise.all([
-          axios.get("/levels/"),
-          axios.get("/list/"),
+          api.get("/api/levels/list/"),
+          api.get("/api/students/list/"),
         ]);
-        setLevels(levelsResponse.data);
-        setStudents(studentsResponse.data);
+        setLevels(Array.isArray(levelsResponse.data) ? levelsResponse.data : []);
+        setStudents(Array.isArray(studentsResponse.data) ? studentsResponse.data : []);
         setLoading(false);
       } catch (err) {
-        setError("Failed to load data. Please try again.");
+        setError(err.response?.data?.detail || "Failed to load data. Please try again.");
         setLoading(false);
       }
     };
@@ -619,62 +430,23 @@ export default function StudentList() {
     setIsAddModalOpen(false);
   };
 
-  const handleEditStudent = async (updatedStudent) => {
-    try {
-      console.log("Début de la mise à jour de l'étudiant");
-      console.log("ID de l'étudiant:", updatedStudent.id);
-      
-      const formData = new FormData();
-      Object.keys(updatedStudent).forEach(key => {
-        if (key !== 'photo' && updatedStudent[key] !== null && updatedStudent[key] !== undefined) {
-          formData.append(key, updatedStudent[key]);
-        }
-      });
-
-      if (updatedStudent.photo instanceof File) {
-        formData.append("photo", updatedStudent.photo);
-      }
-
-      console.log("Envoi de la requête au serveur...");
-      const response = await axios.put(`/edit/${updatedStudent.id}/`, formData, {
-        headers: { 
-          "Content-Type": "multipart/form-data",
-        }
-      });
-      console.log("Réponse du serveur:", response.data);
-
-      // Rafraîchir la liste complète des étudiants
-      const refreshResponse = await axios.get("/list/");
-      console.log("Liste mise à jour reçue");
-      
-      setStudents(refreshResponse.data);
-      setIsEditModalOpen(false);
-      setStudentToEdit(null);
-      setError(null);
-
-    } catch (err) {
-      console.error("Erreur lors de la mise à jour:", err);
-      console.error("Message d'erreur:", err.response?.data || err.message);
-      setError(err.response?.data?.error || "Échec de la modification de l'étudiant.");
-    }
+  const handleEditStudent = (updatedStudent) => {
+    setStudents((prev) => prev.map((s) => (s.id === updatedStudent.id ? updatedStudent : s)));
+    setIsEditModalOpen(false);
+    setStudentToEdit(null);
   };
-
-  // Ajouter un useEffect pour surveiller les changements dans la liste des étudiants
-  useEffect(() => {
-    console.log("Liste des étudiants mise à jour:", students);
-  }, [students]);
 
   const handleDelete = async (studentId) => {
     try {
-      await axios.delete(`/delete/${studentId}/`);
+      await api.delete(`/api/students/delete/${studentId}/`);
       setStudents((prev) => prev.filter((s) => s.id !== studentId));
     } catch (err) {
-      setError("Failed to delete student.");
+      setError(err.response?.data?.detail || "Failed to delete student.");
     }
   };
 
   const openEditModal = (student) => {
-    setStudentToEdit({...student});
+    setStudentToEdit({ ...student });
     setIsEditModalOpen(true);
   };
 
@@ -703,7 +475,7 @@ export default function StudentList() {
   const levelOptions = [{ id: "All", level: "All Levels" }, ...levels];
 
   const handleViewDetails = (studentId) => {
-    navigate(`/admin/studentdetail?id=${studentId}`);
+    navigate(`/admin/studentdetail?id=${studentId}`); // Use navigate instead of router.push
   };
 
   if (loading) return <div className="min-h-screen bg-[#111827] text-white p-6">Loading...</div>;
@@ -727,13 +499,7 @@ export default function StudentList() {
             <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
               <Search className="h-4 w-4 text-gray-400" />
             </div>
-            <input
-              type="text"
-              className="bg-[#273549] pl-10 pr-4 py-2 rounded-lg text-sm w-64 focus:outline-none focus:ring-2 focus:ring-blue-500"
-              placeholder="Search students..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-            />
+            <input type="text" className="bg-[#273549] pl-10 pr-4 py-2 rounded-lg text-sm w-64 focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="Search students..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} />
           </div>
           <button className="bg-blue-600 p-2 rounded-full hover:bg-blue-700" onClick={() => setIsAddModalOpen(true)}>
             <Plus className="h-5 w-5" />
@@ -769,10 +535,8 @@ export default function StudentList() {
           </div>
         )}
         {!isAddModalOpen && !isEditModalOpen && currentStudents.length === 0 && (
-          <div className="bg-[#1e293b] rounded-xl p-4 mb-6 h-[400px]">
-            <div className="h-full flex items-center justify-center">
-              <p className="text-gray-400">No students found matching your criteria</p>
-            </div>
+          <div className="bg-[#1e293b] rounded-xl p-4 mb-6 h-[400px] flex items-center justify-center">
+            <p className="text-gray-400">No students found matching your criteria</p>
           </div>
         )}
 
@@ -817,12 +581,7 @@ export default function StudentList() {
                   <tr key={student.id} className="border-b border-gray-800 hover:bg-gray-800">
                     <td className="px-6 py-4 whitespace-nowrap text-sm">{student.id}</td>
                     <td className="px-6 py-4 whitespace-nowrap">
-                      <img
-                        src={student.photo || "/media/placeholder.svg"}
-                        alt={`${student.prenom} ${student.nom}`}
-                        className="h-10 w-10 rounded-full object-cover"
-                        onError={(e) => (e.target.src = "/media/placeholder.svg")}
-                      />
+                      <img src={student.photo || "/media/placeholder.svg"} alt={`${student.prenom} ${student.nom}`} className="h-10 w-10 rounded-full object-cover" onError={(e) => (e.target.src = "/media/placeholder.svg")} />
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm">{student.nom}</td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm">{student.prenom}</td>
@@ -834,28 +593,13 @@ export default function StudentList() {
                     <td className="px-6 py-4 whitespace-nowrap text-sm">{student.adresse}</td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm">
                       <div className="flex gap-2">
-                        <button 
-                          onClick={() => handleViewDetails(student.id)}
-                          className="p-1 bg-blue-500 rounded-full hover:bg-blue-600"
-                        >
+                        <button onClick={() => handleViewDetails(student.id)} className="p-1 bg-blue-500 rounded-full hover:bg-blue-600">
                           <Eye size={16} />
                         </button>
-                        <button 
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            openEditModal(student);
-                          }}
-                          className="p-1 bg-green-500 rounded-full hover:bg-green-600"
-                        >
+                        <button onClick={(e) => { e.stopPropagation(); openEditModal(student); }} className="p-1 bg-green-500 rounded-full hover:bg-green-600">
                           <Edit size={16} />
                         </button>
-                        <button 
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleDelete(student.id);
-                          }}
-                          className="p-1 bg-red-500 rounded-full hover:bg-red-600"
-                        >
+                        <button onClick={(e) => { e.stopPropagation(); handleDelete(student.id); }} className="p-1 bg-red-500 rounded-full hover:bg-red-600">
                           <Trash2 size={16} />
                         </button>
                       </div>

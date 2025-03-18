@@ -14,6 +14,7 @@ import Rooms from './components/admin/rooms';
 import Subjects from './components/admin/subjects';
 import TeacherList from './components/teacher/TeacherList';
 import Teacher_management from './components/teacher/teacher_management';
+import StudentAccountManagement from './components/student/studentaccount';
 const App = () => {
   return (
     <Router>
@@ -37,6 +38,7 @@ const App = () => {
           <Route path="subjects" element={<Subjects />} />
           <Route path="teachers/list" element={<TeacherList />} />
           <Route path="teachers" element={<Teacher_management />} />
+          <Route path="studentaccount" element={<StudentAccountManagement />} />
 
         </Route>
       </Routes>

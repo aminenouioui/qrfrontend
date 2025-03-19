@@ -4,9 +4,6 @@ import { useState, useEffect } from "react";
 import api from "../api"; // Ensure this path is correct
 import {
   ArrowLeft,
-  Calendar,
-  Clock,
-  MapPin,
   ChevronLeft,
   ChevronRight,
   Plus,
@@ -30,7 +27,7 @@ export default function ClassSchedule() {
     day: "MON",
     start_time: "08:00",
     end_time: "10:00",
-    Teacher: "",
+    teacher: "",
     classe: "",
     level: "",
     notes: "",
@@ -41,7 +38,7 @@ export default function ClassSchedule() {
   const [schedules, setSchedules] = useState([]);
   const [levels, setLevels] = useState([]);
   const [classrooms, setClassrooms] = useState([]);
-  const [selectedLevel, setSelectedLevel] = useState(null);
+  const [selectedTeacher, setSelectedTeacher] = useState(null);
 
   const weekdays = ["MON", "TUE", "WED", "THU", "FRI"];
   const timeSlots = ["08:00", "10:00", "12:00", "14:00", "16:00"];
@@ -50,15 +47,16 @@ export default function ClassSchedule() {
     const fetchData = async () => {
       try {
         const [subjectsRes, teachersRes, levelsRes, classroomsRes] = await Promise.all([
-          api.get("/api/subjects/list/"), // Matches teacher_qr
-          api.get("/api/teachers/list/"), // Matches teacher_qr
-          api.get("/api/levels/list/"),   // Matches student_qr
-          api.get("/api/classes/list/"),  // Matches teacher_qr
+          api.get("/api/subjects/list/"),
+          api.get("/api/teachers/list/"),
+          api.get("/api/levels/list/"),
+          api.get("/api/classes/list/"),
         ]);
         setSubjects(subjectsRes.data);
         setTeachers(teachersRes.data);
-        setLevels(levelsRes.data);
+        setLevels(levelsRes.data || []); // Ensure levels is an array even if empty
         setClassrooms(classroomsRes.data);
+        console.log("Fetched levels:", levelsRes.data); // Debug log
         setError(null);
       } catch (error) {
         console.error("Fetch error:", error.response ? error.response.data : error.message);
@@ -72,10 +70,10 @@ export default function ClassSchedule() {
     fetchData();
   }, []);
 
-  const fetchSchedulesByLevel = async (levelId) => {
+  const fetchSchedulesByTeacher = async (teacherId) => {
     try {
-      const response = await api.get(`/api/schedules/level/${levelId}/`); // Matches student_qr
-      console.log("Fetched schedules:", response.data); // Debug log
+      const response = await api.get(`/api/schedules/teacher/${teacherId}/`);
+      console.log("Fetched schedules:", response.data);
       setSchedules(response.data);
       setError(null);
     } catch (error) {
@@ -89,23 +87,26 @@ export default function ClassSchedule() {
   };
 
   useEffect(() => {
-    if (selectedLevel) {
-      fetchSchedulesByLevel(selectedLevel.id);
+    if (selectedTeacher) {
+      fetchSchedulesByTeacher(selectedTeacher.id);
     } else {
       setSchedules([]);
     }
-  }, [selectedLevel]);
+  }, [selectedTeacher]);
 
-  const handleLevelClick = (level) => {
-    setSelectedLevel(level);
+  const handleTeacherClick = (teacher) => {
+    setSelectedTeacher(teacher);
   };
 
   const getSubject = (subjectId) =>
     subjects.find((s) => s.id === subjectId) || { id: "", nom: "Unknown Subject" };
   const getTeacher = (teacherId) =>
     teachers.find((t) => t.id === teacherId) || { id: "", nom: "Unknown", prenom: "" };
-  const getLevel = (levelId) =>
-    levels.find((l) => l.id === levelId) || { id: "", level: "Unknown Level" };
+  const getLevel = (levelId) => {
+    const level = levels.find((l) => l.id === levelId);
+    console.log("Looking for levelId:", levelId, "Found:", level); // Debug log
+    return level || { id: "", level: "Unknown Level" }; // Fallback
+  };
   const getClasse = (classeId) =>
     classrooms.find((c) => c.id === classeId) || { id: "", name: "Unknown Classroom" };
 
@@ -123,23 +124,24 @@ export default function ClassSchedule() {
     const { name, value } = e.target;
     setFormData({
       ...formData,
-      [name]: ["Teacher", "subject", "level", "classe"].includes(name) ? Number(value) || "" : value,
+      [name]: ["teacher", "subject", "classe", "level"].includes(name) ? Number(value) || "" : value,
     });
   };
 
   const handleAddClass = (day, time) => {
-    if (!selectedLevel) {
-      setError("Please select a level before adding a class.");
+    if (!selectedTeacher) {
+      setError("Please select a teacher before adding a class.");
       return;
     }
+    const defaultLevelId = levels.length > 0 ? levels[0].id : "";
     setFormData({
       subject: subjects[0]?.id || "",
       day: day,
       start_time: time,
       end_time: getEndTime(time),
-      Teacher: teachers[0]?.id || "",
+      teacher: selectedTeacher?.id || "",
       classe: classrooms[0]?.id || "",
-      level: selectedLevel?.id || "",
+      level: defaultLevelId,
       notes: "",
     });
     setIsAddingClass(true);
@@ -153,9 +155,9 @@ export default function ClassSchedule() {
       day: classItem.day,
       start_time: normalizeTime(classItem.start_time),
       end_time: normalizeTime(classItem.end_time),
-      Teacher: classItem.Teacher,
+      teacher: classItem.teacher,
       classe: classItem.classe,
-      level: classItem.level,
+      level: classItem.level || (levels.length > 0 ? levels[0].id : ""),
       notes: classItem.notes || "",
     });
     setIsEditingClass(true);
@@ -169,17 +171,33 @@ export default function ClassSchedule() {
   };
 
   const handleSaveNewClass = async () => {
-    if (!selectedLevel) {
-      setError("Please select a level before saving a class.");
+    if (!selectedTeacher) {
+      setError("Please select a teacher before saving a class.");
+      return;
+    }
+    if (levels.length > 0 && !formData.level) {
+      setError("Please select a level.");
+      return;
+    }
+    // Check for duplicates, now including start_time
+    const isDuplicate = schedules.some(
+      (schedule) =>
+        schedule.teacher === formData.teacher &&
+        schedule.classe === formData.classe &&
+        schedule.subject === formData.subject &&
+        schedule.day === formData.day &&
+        normalizeTime(schedule.start_time) === formData.start_time
+    );
+    if (isDuplicate) {
+      setError("A schedule with the same teacher, classroom, subject, day, and start time already exists.");
       return;
     }
     try {
-      const response = await api.post("/api/schedules/create/", formData); // Matches student_qr
+      console.log("Form data before save:", formData); // Debug log
+      const response = await api.post("/api/schedules/add/", formData);
       console.log("New schedule added:", response.data); // Debug log
-      // Optimistically update schedules state
       setSchedules((prev) => [...prev, response.data]);
-      // Refresh to ensure consistency
-      await fetchSchedulesByLevel(selectedLevel.id);
+      await fetchSchedulesByTeacher(selectedTeacher.id);
       setIsAddingClass(false);
       resetForm();
       setError(null);
@@ -195,7 +213,7 @@ export default function ClassSchedule() {
 
   const handleUpdateClass = async () => {
     try {
-      const response = await api.put(`/api/schedules/${formData.id}/update/`, formData); // Matches student_qr
+      const response = await api.put(`/api/schedules/update/${formData.id}/`, formData);
       setSchedules((prev) => prev.map((c) => (c.id === formData.id ? response.data : c)));
       setIsEditingClass(false);
       setSelectedClass(response.data);
@@ -212,7 +230,7 @@ export default function ClassSchedule() {
 
   const handleDeleteClass = async () => {
     try {
-      await api.delete(`/api/schedules/${selectedClass.id}/delete/`); // Matches student_qr
+      await api.delete(`/api/schedules/delete/${selectedClass.id}/`);
       setSchedules((prev) => prev.filter((c) => c.id !== selectedClass.id));
       setShowDeleteConfirm(false);
       setSelectedClass(null);
@@ -245,9 +263,9 @@ export default function ClassSchedule() {
       day: "MON",
       start_time: "08:00",
       end_time: "10:00",
-      Teacher: teachers[0]?.id || "",
+      teacher: selectedTeacher?.id || "",
       classe: classrooms[0]?.id || "",
-      level: selectedLevel?.id || "",
+      level: levels.length > 0 ? levels[0].id : "",
       notes: "",
     });
   };
@@ -298,30 +316,212 @@ export default function ClassSchedule() {
         )}
 
         <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
-          <div className="lg:col-span-1">
-            <div className="bg-[#1e293b] rounded-xl overflow-hidden">
+          <div className="lg:col-span-1 overflow-y-auto">
+            <div className="bg-[#1e293b] rounded-xl overflow-hidden mb-6">
               <div className="p-4 border-b border-gray-800">
-                <h3 className="font-medium">All Levels</h3>
+                <h3 className="font-medium">All Teachers</h3>
               </div>
-              <div className="max-h-[600px] overflow-y-auto">
-                {levels.map((level) => (
+              <div className="max-h-[400px] overflow-y-auto">
+                {teachers.map((teacher) => (
                   <div
-                    key={level.id}
+                    key={teacher.id}
                     className={`p-4 border-b border-gray-800 cursor-pointer hover:bg-[#172033] ${
-                      selectedLevel?.id === level.id ? "bg-[#172033]" : ""
+                      selectedTeacher?.id === teacher.id ? "bg-[#172033]" : ""
                     }`}
-                    onClick={() => handleLevelClick(level)}
+                    onClick={() => handleTeacherClick(teacher)}
                   >
-                    <div className="font-medium">{level.level}</div>
+                    <div className="font-medium">{teacher.prenom} {teacher.nom}</div>
                   </div>
                 ))}
               </div>
             </div>
+
+            {(isAddingClass || isEditingClass) && (
+              <div className="bg-[#1e293b] rounded-xl p-4">
+                <h3 className="text-lg font-medium mb-4">
+                  {isAddingClass ? "Add New Class" : "Edit Class"}
+                </h3>
+                <div className="grid grid-cols-1 gap-4 mb-4">
+                  <div>
+                    <label className="block text-sm text-gray-400 mb-1">Subject</label>
+                    <select
+                      name="subject"
+                      value={formData.subject}
+                      onChange={handleInputChange}
+                      className="w-full bg-[#0f172a] border border-gray-700 rounded-lg px-3 py-2 text-white"
+                    >
+                      <option value="">Select Subject</option>
+                      {subjects.map((subject) => (
+                        <option key={subject.id} value={subject.id}>
+                          {subject.nom}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-sm text-gray-400 mb-1">Teacher</label>
+                    <select
+                      name="teacher"
+                      value={formData.teacher}
+                      onChange={handleInputChange}
+                      className="w-full bg-[#0f172a] border border-gray-700 rounded-lg px-3 py-2 text-white"
+                    >
+                      <option value="">Select Teacher</option>
+                      {teachers.map((teacher) => (
+                        <option key={teacher.id} value={teacher.id}>
+                          {teacher.prenom} {teacher.nom}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-sm text-gray-400 mb-1">Day</label>
+                    <select
+                      name="day"
+                      value={formData.day}
+                      onChange={handleInputChange}
+                      className="w-full bg-[#0f172a] border border-gray-700 rounded-lg px-3 py-2 text-white"
+                    >
+                      {weekdays.map((day) => (
+                        <option key={day} value={day}>
+                          {day}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-sm text-gray-400 mb-1">Start Time</label>
+                    <input
+                      type="time"
+                      name="start_time"
+                      value={formData.start_time}
+                      onChange={handleInputChange}
+                      className="w-full bg-[#0f172a] border border-gray-700 rounded-lg px-3 py-2 text-white"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm text-gray-400 mb-1">End Time</label>
+                    <input
+                      type="time"
+                      name="end_time"
+                      value={formData.end_time}
+                      onChange={handleInputChange}
+                      className="w-full bg-[#0f172a] border border-gray-700 rounded-lg px-3 py-2 text-white"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm text-gray-400 mb-1">Classroom</label>
+                    <select
+                      name="classe"
+                      value={formData.classe}
+                      onChange={handleInputChange}
+                      className="w-full bg-[#0f172a] border border-gray-700 rounded-lg px-3 py-2 text-white"
+                    >
+                      <option value="">Select Classroom</option>
+                      {classrooms.map((classe) => (
+                        <option key={classe.id} value={classe.id}>
+                          {classe.name}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-sm text-gray-400 mb-1">Level</label>
+                    <select
+                      name="level"
+                      value={formData.level}
+                      onChange={handleInputChange}
+                      className="w-full bg-[#0f172a] border border-gray-700 rounded-lg px-3 py-2 text-white"
+                    >
+                      <option value="">Select Level</option>
+                      {levels.length === 0 ? (
+                        <option disabled>No levels available</option>
+                      ) : (
+                        levels.map((level) => (
+                          <option key={level.id} value={level.id}>
+                            {level.level}
+                          </option>
+                        ))
+                      )}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-sm text-gray-400 mb-1">Notes</label>
+                    <textarea
+                      name="notes"
+                      value={formData.notes}
+                      onChange={handleInputChange}
+                      className="w-full bg-[#0f172a] border border-gray-700 rounded-lg px-3 py-2 text-white"
+                      rows="3"
+                    />
+                  </div>
+                </div>
+                <div className="flex gap-2">
+                  <button
+                    className="px-4 py-2 bg-blue-600 rounded-lg flex items-center gap-2 hover:bg-blue-700"
+                    onClick={isAddingClass ? handleSaveNewClass : handleUpdateClass}
+                  >
+                    <Save className="h-4 w-4" /> Save
+                  </button>
+                  <button
+                    className="px-4 py-2 bg-gray-600 rounded-lg flex items-center gap-2 hover:bg-gray-700"
+                    onClick={handleCancelForm}
+                  >
+                    <X className="h-4 w-4" /> Cancel
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {showDeleteConfirm && (
+              <div className="bg-[#1e293b] rounded-xl p-4 mt-6">
+                <div className="flex items-center gap-2 text-red-400 mb-4">
+                  <AlertCircle className="h-5 w-5" />
+                  <h3 className="text-lg font-medium">Confirm Deletion</h3>
+                </div>
+                <p className="text-sm text-gray-400 mb-4">
+                  Are you sure you want to delete "{getSubject(selectedClass.subject).nom}" on{" "}
+                  {selectedClass.day} at {selectedClass.start_time}?
+                </p>
+                <div className="flex gap-2">
+                  <button
+                    className="px-4 py-2 bg-red-600 rounded-lg flex items-center gap-2 hover:bg-red-700"
+                    onClick={handleDeleteClass}
+                  >
+                    <Trash2 className="h-4 w-4" /> Delete
+                  </button>
+                  <button
+                    className="px-4 py-2 bg-gray-600 rounded-lg flex items-center gap-2 hover:bg-gray-700"
+                    onClick={() => setShowDeleteConfirm(false)}
+                  >
+                    <X className="h-4 w-4" /> Cancel
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
 
           <div className="lg:col-span-3">
             <div className="bg-[#1e293b] rounded-xl overflow-hidden">
               <div className="p-4">
+                <div className="flex items-center justify-between mb-4">
+                  <button
+                    className="p-2 bg-blue-600/20 border border-blue-600/30 rounded-lg hover:bg-blue-600/40"
+                    onClick={prevWeek}
+                  >
+                    <ChevronLeft className="h-5 w-5" />
+                  </button>
+                  <span className="text-sm font-medium">
+                    {weekDates[0].toLocaleDateString("en-US", { month: "short", day: "numeric" })} -{" "}
+                    {weekDates[4].toLocaleDateString("en-US", { month: "short", day: "numeric" })}
+                  </span>
+                  <button
+                    className="p-2 bg-blue-600/20 border border-blue-600/30 rounded-lg hover:bg-blue-600/40"
+                    onClick={nextWeek}
+                  >
+                    <ChevronRight className="h-5 w-5" />
+                  </button>
+                </div>
                 <div className="grid grid-cols-6 gap-2">
                   <div className="col-span-1">
                     <div className="h-12"></div>
@@ -393,166 +593,6 @@ export default function ClassSchedule() {
                   ))}
                 </div>
               </div>
-
-              {(isAddingClass || isEditingClass) && (
-                <div className="p-4 border-t border-gray-800 bg-[#172033]">
-                  <h3 className="text-lg font-medium mb-4">
-                    {isAddingClass ? "Add New Class" : "Edit Class"}
-                  </h3>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-                    <div>
-                      <label className="block text-sm text-gray-400 mb-1">Subject</label>
-                      <select
-                        name="subject"
-                        value={formData.subject}
-                        onChange={handleInputChange}
-                        className="w-full bg-[#0f172a] border border-gray-700 rounded-lg px-3 py-2 text-white"
-                      >
-                        <option value="">Select Subject</option>
-                        {subjects.map((subject) => (
-                          <option key={subject.id} value={subject.id}>
-                            {subject.nom}
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-                    <div>
-                      <label className="block text-sm text-gray-400 mb-1">Teacher</label>
-                      <select
-                        name="Teacher"
-                        value={formData.Teacher}
-                        onChange={handleInputChange}
-                        className="w-full bg-[#0f172a] border border-gray-700 rounded-lg px-3 py-2 text-white"
-                      >
-                        <option value="">Select Teacher</option>
-                        {teachers.map((teacher) => (
-                          <option key={teacher.id} value={teacher.id}>
-                            {teacher.prenom} {teacher.nom}
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-                    <div>
-                      <label className="block text-sm text-gray-400 mb-1">Day</label>
-                      <select
-                        name="day"
-                        value={formData.day}
-                        onChange={handleInputChange}
-                        className="w-full bg-[#0f172a] border border-gray-700 rounded-lg px-3 py-2 text-white"
-                      >
-                        {weekdays.map((day) => (
-                          <option key={day} value={day}>
-                            {day}
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-                    <div>
-                      <label className="block text-sm text-gray-400 mb-1">Start Time</label>
-                      <input
-                        type="time"
-                        name="start_time"
-                        value={formData.start_time}
-                        onChange={handleInputChange}
-                        className="w-full bg-[#0f172a] border border-gray-700 rounded-lg px-3 py-2 text-white"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm text-gray-400 mb-1">End Time</label>
-                      <input
-                        type="time"
-                        name="end_time"
-                        value={formData.end_time}
-                        onChange={handleInputChange}
-                        className="w-full bg-[#0f172a] border border-gray-700 rounded-lg px-3 py-2 text-white"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm text-gray-400 mb-1">Classroom</label>
-                      <select
-                        name="classe"
-                        value={formData.classe}
-                        onChange={handleInputChange}
-                        className="w-full bg-[#0f172a] border border-gray-700 rounded-lg px-3 py-2 text-white"
-                      >
-                        <option value="">Select Classroom</option>
-                        {classrooms.map((classe) => (
-                          <option key={classe.id} value={classe.id}>
-                            {classe.name}
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-                    <div>
-                      <label className="block text-sm text-gray-400 mb-1">Level</label>
-                      <select
-                        name="level"
-                        value={formData.level}
-                        onChange={handleInputChange}
-                        className="w-full bg-[#0f172a] border border-gray-700 rounded-lg px-3 py-2 text-white"
-                      >
-                        <option value="">Select Level</option>
-                        {levels.map((level) => (
-                          <option key={level.id} value={level.id}>
-                            {level.level}
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-                    <div className="md:col-span-2">
-                      <label className="block text-sm text-gray-400 mb-1">Notes</label>
-                      <textarea
-                        name="notes"
-                        value={formData.notes}
-                        onChange={handleInputChange}
-                        className="w-full bg-[#0f172a] border border-gray-700 rounded-lg px-3 py-2 text-white"
-                        rows="3"
-                      />
-                    </div>
-                  </div>
-                  <div className="flex gap-2">
-                    <button
-                      className="px-4 py-2 bg-blue-600 rounded-lg flex items-center gap-2 hover:bg-blue-700"
-                      onClick={isAddingClass ? handleSaveNewClass : handleUpdateClass}
-                    >
-                      <Save className="h-4 w-4" /> Save
-                    </button>
-                    <button
-                      className="px-4 py-2 bg-gray-600 rounded-lg flex items-center gap-2 hover:bg-gray-700"
-                      onClick={handleCancelForm}
-                    >
-                      <X className="h-4 w-4" /> Cancel
-                    </button>
-                  </div>
-                </div>
-              )}
-
-              {showDeleteConfirm && (
-                <div className="p-4 border-t border-gray-800 bg-[#172033]">
-                  <div className="flex items-center gap-2 text-red-400 mb-4">
-                    <AlertCircle className="h-5 w-5" />
-                    <h3 className="text-lg font-medium">Confirm Deletion</h3>
-                  </div>
-                  <p className="text-sm text-gray-400 mb-4">
-                    Are you sure you want to delete "{getSubject(selectedClass.subject).nom}" on{" "}
-                    {selectedClass.day} at {selectedClass.start_time}?
-                  </p>
-                  <div className="flex gap-2">
-                    <button
-                      className="px-4 py-2 bg-red-600 rounded-lg flex items-center gap-2 hover:bg-red-700"
-                      onClick={handleDeleteClass}
-                    >
-                      <Trash2 className="h-4 w-4" /> Delete
-                    </button>
-                    <button
-                      className="px-4 py-2 bg-gray-600 rounded-lg flex items-center gap-2 hover:bg-gray-700"
-                      onClick={() => setShowDeleteConfirm(false)}
-                    >
-                      <X className="h-4 w-4" /> Cancel
-                    </button>
-                  </div>
-                </div>
-              )}
             </div>
           </div>
         </div>

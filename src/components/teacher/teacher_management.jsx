@@ -49,6 +49,7 @@ function Teacher_management() {
       color: "from-green-500 to-green-600",
       stats: "4,392 grades",
       action: "View Grades",
+      onClick: () => navigate('/admin/grades_teacher')
       
     },
     {
@@ -58,7 +59,7 @@ function Teacher_management() {
       color: "from-purple-500 to-purple-600",
       stats: "42 classes",
       action: "View Schedules",
-      
+      onClick: () => navigate('/admin/schedule_teacher')
 
     },
     {

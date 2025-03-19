@@ -16,6 +16,7 @@ import TeacherList from './components/teacher/TeacherList';
 import Teacher_management from './components/teacher/teacher_management';
 import Grades_teacher from './components/teacher/grades_teacher';
 import Schedule_teacher from './components/teacher/schedule_teacher';
+import StudentAccountManagement from './components/student/studentaccount';
 const App = () => {
   return (
     <Router>
@@ -41,7 +42,7 @@ const App = () => {
           <Route path="teachers" element={<Teacher_management />} />
           <Route path="grades_teacher" element={<Grades_teacher />} />
           <Route path="schedule_teacher" element={<Schedule_teacher />} />
-        </Route>
+          <Route path="studentaccount" element={<StudentAccountManagement />} />        </Route>
       </Routes>
     </Router>
   );

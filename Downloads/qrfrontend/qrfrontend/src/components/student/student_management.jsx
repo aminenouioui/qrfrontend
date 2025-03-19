@@ -68,6 +68,7 @@ function Student_management() {
       color: "from-amber-500 to-amber-600",
       stats: "1,248 accounts",
       action: "Manage Accounts",
+      onClick: () => navigate('/admin/studentaccount')
     },
     {
       title: "Student Attendance",

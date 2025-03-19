@@ -2,22 +2,8 @@
 
 import { useState, useEffect } from "react";
 import {
-  Search,
-  UserPlus,
-  Edit,
-  Trash2,
-  Key,
-  Eye,
-  EyeOff,
-  Filter,
-  ChevronDown,
-  CheckCircle,
-  XCircle,
-  AlertCircle,
-  Lock,
-  Unlock,
-  Copy,
-  CheckCheck,
+  Search, UserPlus, Edit, Trash2, Key, Eye, EyeOff, Filter, ChevronDown,
+  CheckCircle, XCircle, AlertCircle, Lock, Unlock, Copy, CheckCheck,
 } from "lucide-react";
 import api from "../api";
 
@@ -31,17 +17,12 @@ function StudentAccountManagement() {
   const [showPasswordModal, setShowPasswordModal] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [currentAccount, setCurrentAccount] = useState(null);
-  const [showPassword, setShowPassword] = useState(false);
+  const [showPassword, setShowPassword] = useState({});
   const [notification, setNotification] = useState(null);
   const [copied, setCopied] = useState(false);
   const [selectedStudent, setSelectedStudent] = useState("");
-
   const [formData, setFormData] = useState({
-    name: "",
-    email: "",
-    username: "",
-    password: "",
-    status: "Active",
+    name: "", email: "", username: "", password: "", status: "Active",
   });
 
   useEffect(() => {
@@ -57,7 +38,7 @@ function StudentAccountManagement() {
     const fetchAccounts = async () => {
       try {
         const response = await api.get("/api/student-accounts/");
-        setStudentAccounts(response.data);
+        setStudentAccounts(response.data.map(acc => ({ ...acc, showPassword: false })));
       } catch (err) {
         showNotification(`Error fetching accounts: ${err.response?.data?.detail || err.message}`, "error");
       }
@@ -104,7 +85,7 @@ function StudentAccountManagement() {
       password += chars.charAt(Math.floor(Math.random() * chars.length));
     }
     setFormData((prev) => ({ ...prev, password }));
-    setShowPassword(true);
+    return password;
   };
 
   const copyToClipboard = (text) => {
@@ -120,17 +101,19 @@ function StudentAccountManagement() {
       showNotification("Please select a student", "error");
       return;
     }
-
     try {
-      console.log("Creating account with token:", localStorage.getItem("access_token"));
       const response = await api.post(`/create-student-account/${selectedStudent}/`);
-      setStudentAccounts((prev) => [...prev, response.data]);
+      console.log("API Response:", response.data); // Debug here
+      const newAccount = { ...response.data, showPassword: false };
+      setStudentAccounts((prev) => [...prev, newAccount]);
       setShowCreateModal(false);
-      showNotification("Account created successfully", "success");
+      showNotification(
+        `Account created! Username: ${response.data.username}, Password: ${response.data.password}`,
+        "success"
+      );
       setFormData({ name: "", email: "", username: "", password: "", status: "Active" });
       setSelectedStudent("");
     } catch (error) {
-      console.error("Create error:", error.response?.data);
       showNotification(
         error.response?.data?.error || "Failed to create account",
         "error"
@@ -140,11 +123,10 @@ function StudentAccountManagement() {
 
   const updateAccount = async () => {
     if (!currentAccount) return;
-
     try {
       const response = await api.put(`/api/student-accounts/${currentAccount.id}/`, formData);
       setStudentAccounts((prev) =>
-        prev.map((acc) => (acc.id === response.data.id ? response.data : acc))
+        prev.map((acc) => (acc.id === response.data.id ? { ...response.data, showPassword: acc.showPassword } : acc))
       );
       setShowEditModal(false);
       showNotification("Account updated successfully", "success");
@@ -158,13 +140,14 @@ function StudentAccountManagement() {
 
   const resetPassword = async () => {
     if (!currentAccount) return;
-
     try {
-      const response = await api.post(`/api/student-accounts/${currentAccount.id}/reset-password/`, {
-        password: formData.password,
-      });
+      const newPassword = formData.password; // Use provided or existing
+      const response = await api.post(`/api/student-accounts/${currentAccount.id}/reset-password/`, { password: newPassword });
+      setStudentAccounts((prev) =>
+        prev.map((acc) => (acc.id === currentAccount.id ? { ...acc, password: newPassword } : acc))
+      );
       setShowPasswordModal(false);
-      showNotification(response.data.message || "Password reset successfully", "success");
+      showNotification(`Password reset successfully: ${newPassword}`, "success");
     } catch (error) {
       showNotification(
         error.response?.data?.error || "Failed to reset password",
@@ -172,10 +155,8 @@ function StudentAccountManagement() {
       );
     }
   };
-
   const deleteAccount = async () => {
     if (!currentAccount) return;
-
     try {
       await api.delete(`/api/student-accounts/${currentAccount.id}/delete/`);
       setStudentAccounts((prev) => prev.filter((acc) => acc.id !== currentAccount.id));
@@ -189,6 +170,14 @@ function StudentAccountManagement() {
     }
   };
 
+  const togglePasswordVisibility = (accountId) => {
+    setStudentAccounts((prev) =>
+      prev.map((acc) =>
+        acc.id === accountId ? { ...acc, showPassword: !acc.showPassword } : acc
+      )
+    );
+  };
+
   const showNotification = (message, type = "info") => {
     setNotification({ message, type });
     setTimeout(() => setNotification(null), 3000);
@@ -200,7 +189,7 @@ function StudentAccountManagement() {
       name: account.name,
       email: account.email,
       username: account.username,
-      password: "",
+      password: account.password || "",
       status: account.status,
     });
     setShowEditModal(true);
@@ -208,11 +197,9 @@ function StudentAccountManagement() {
 
   const handleResetPassword = (account) => {
     setCurrentAccount(account);
-    setFormData((prev) => ({ ...prev, password: "" }));
-    generatePassword();
+    setFormData((prev) => ({ ...prev, password: account.password || "" })); // Show existing password
     setShowPasswordModal(true);
   };
-
   const handleDeleteAccount = (account) => {
     setCurrentAccount(account);
     setShowDeleteModal(true);
@@ -221,12 +208,9 @@ function StudentAccountManagement() {
   const toggleAccountStatus = async (account) => {
     const newStatus = account.status === "Active" ? "Inactive" : "Active";
     try {
-      const response = await api.put(`/api/student-accounts/${account.id}/`, {
-        ...account,
-        status: newStatus,
-      });
+      const response = await api.put(`/api/student-accounts/${account.id}/`, { ...account, status: newStatus });
       setStudentAccounts((prev) =>
-        prev.map((acc) => (acc.id === account.id ? response.data : acc))
+        prev.map((acc) => (acc.id === account.id ? { ...response.data, showPassword: acc.showPassword } : acc))
       );
       showNotification(`Account ${newStatus.toLowerCase()}`, "success");
     } catch (error) {
@@ -332,71 +316,84 @@ function StudentAccountManagement() {
 
           <div className="bg-slate-800/50 rounded-xl border border-slate-700 overflow-hidden shadow-xl">
             <div className="overflow-x-auto">
-              <table className="w-full">
-                <thead>
-                  <tr className="bg-slate-700/50 text-left">
-                    <th className="px-6 py-3 text-xs font-medium text-slate-300 uppercase tracking-wider">ID</th>
-                    <th className="px-6 py-3 text-xs font-medium text-slate-300 uppercase tracking-wider">Name</th>
-                    <th className="px-6 py-3 text-xs font-medium text-slate-300 uppercase tracking-wider">Email</th>
-                    <th className="px-6 py-3 text-xs font-medium text-slate-300 uppercase tracking-wider">Username</th>
-                    <th className="px-6 py-3 text-xs font-medium text-slate-300 uppercase tracking-wider">Status</th>
-                    <th className="px-6 py-3 text-xs font-medium text-slate-300 uppercase tracking-wider">Last Login</th>
-                    <th className="px-6 py-3 text-xs font-medium text-slate-300 uppercase tracking-wider">Actions</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-700">
-                  {filteredAccounts.length > 0 ? (
-                    filteredAccounts.map((account) => (
-                      <tr key={account.id} className="hover:bg-slate-700/30 transition-colors">
-                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-slate-300">{account.id}</td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-300">{account.name}</td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-300">{account.email}</td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-300">{account.username}</td>
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border ${getStatusBadge(account.status)}`}>
-                            {account.status === "Active" && <div className="w-1.5 h-1.5 rounded-full bg-green-400 mr-1.5"></div>}
-                            {account.status === "Inactive" && <div className="w-1.5 h-1.5 rounded-full bg-slate-400 mr-1.5"></div>}
-                            {account.status}
-                          </span>
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-300">{account.lastLogin || "Never"}</td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-300">
-                          <div className="flex items-center space-x-3">
-                            <button className="text-blue-400 hover:text-blue-300 transition-colors" onClick={() => handleEditAccount(account)} title="Edit Account">
-                              <Edit className="h-4 w-4" />
-                            </button>
-                            <button className="text-amber-400 hover:text-amber-300 transition-colors" onClick={() => handleResetPassword(account)} title="Reset Password">
-                              <Key className="h-4 w-4" />
-                            </button>
-                            <button
-                              className={`${account.status === "Active" ? "text-red-400 hover:text-red-300" : "text-green-400 hover:text-green-300"} transition-colors`}
-                              onClick={() => toggleAccountStatus(account)}
-                              title={account.status === "Active" ? "Lock Account" : "Unlock Account"}
-                            >
-                              {account.status === "Active" ? <Lock className="h-4 w-4" /> : <Unlock className="h-4 w-4" />}
-                            </button>
-                            <button className="text-red-400 hover:text-red-300 transition-colors" onClick={() => handleDeleteAccount(account)} title="Delete Account">
-                              <Trash2 className="h-4 w-4" />
-                            </button>
-                          </div>
-                        </td>
-                      </tr>
-                    ))
-                  ) : (
-                    <tr>
-                      <td colSpan="7" className="px-6 py-4 text-center text-sm text-slate-400">
-                        No accounts found.
-                      </td>
-                    </tr>
-                  )}
-                </tbody>
-              </table>
+            <table className="w-full">
+  <thead>
+    <tr className="bg-slate-700/50 text-left">
+      <th className="px-6 py-3 text-xs font-medium text-slate-300 uppercase tracking-wider">ID</th>
+      <th className="px-6 py-3 text-xs font-medium text-slate-300 uppercase tracking-wider">Name</th>
+      <th className="px-6 py-3 text-xs font-medium text-slate-300 uppercase tracking-wider">Email</th>
+      <th className="px-6 py-3 text-xs font-medium text-slate-300 uppercase tracking-wider">Username</th>
+      <th className="px-6 py-3 text-xs font-medium text-slate-300 uppercase tracking-wider">Password</th>
+      <th className="px-6 py-3 text-xs font-medium text-slate-300 uppercase tracking-wider">Status</th>
+      <th className="px-6 py-3 text-xs font-medium text-slate-300 uppercase tracking-wider">Last Login</th>
+      <th className="px-6 py-3 text-xs font-medium text-slate-300 uppercase tracking-wider">Actions</th>
+    </tr>
+  </thead>
+  <tbody className="divide-y divide-slate-700">
+    {filteredAccounts.length > 0 ? (
+      filteredAccounts.map((account) => (
+        <tr key={account.id} className="hover:bg-slate-700/30 transition-colors">
+          <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-slate-300">{account.id}</td>
+          <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-300">{account.name}</td>
+          <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-300">{account.email}</td>
+          <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-300">{account.username}</td>
+          <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-300">
+            <div className="flex items-center">
+              <span>{account.showPassword ? (account.password || "Not set") : "••••••••••••"}</span>
+              <button
+                onClick={() => togglePasswordVisibility(account.id)}
+                className="ml-2 text-slate-400 hover:text-slate-300"
+              >
+                {account.showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+              </button>
+            </div>
+          </td>
+          <td className="px-6 py-4 whitespace-nowrap">
+            <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border ${getStatusBadge(account.status)}`}>
+              {account.status === "Active" && <div className="w-1.5 h-1.5 rounded-full bg-green-400 mr-1.5"></div>}
+              {account.status === "Inactive" && <div className="w-1.5 h-1.5 rounded-full bg-slate-400 mr-1.5"></div>}
+              {account.status}
+            </span>
+          </td>
+          <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-300">{account.lastLogin || "Never"}</td>
+          <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-300">
+            <div className="flex items-center space-x-3">
+              <button className="text-blue-400 hover:text-blue-300" onClick={() => handleEditAccount(account)} title="Edit Account">
+                <Edit className="h-4 w-4" />
+              </button>
+              <button className="text-amber-400 hover:text-amber-300" onClick={() => handleResetPassword(account)} title="Reset Password">
+                <Key className="h-4 w-4" />
+              </button>
+              <button
+                className={`${account.status === "Active" ? "text-red-400 hover:text-red-300" : "text-green-400 hover:text-green-300"}`}
+                onClick={() => toggleAccountStatus(account)}
+                title={account.status === "Active" ? "Lock Account" : "Unlock Account"}
+              >
+                {account.status === "Active" ? <Lock className="h-4 w-4" /> : <Unlock className="h-4 w-4" />}
+              </button>
+              <button className="text-red-400 hover:text-red-300" onClick={() => handleDeleteAccount(account)} title="Delete Account">
+                <Trash2 className="h-4 w-4" />
+              </button>
+            </div>
+          </td>
+        </tr>
+      ))
+    ) : (
+      <tr>
+        <td colSpan="8" className="px-6 py-4 text-center text-sm text-slate-400">
+          No accounts found.
+        </td>
+      </tr>
+    )}
+  </tbody>
+</table>
             </div>
           </div>
         </main>
       </div>
 
-      {/* Create Account Modal */}
+      {/* Create, Edit, Reset Password, Delete Modals remain the same */}
+      {/* Add them here if needed, but they’re unchanged except for resetPassword logic */}
       {showCreateModal && (
         <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
           <div className="bg-slate-800 rounded-xl border border-slate-700 shadow-2xl w-full max-w-md overflow-hidden">
@@ -480,7 +477,6 @@ function StudentAccountManagement() {
         </div>
       )}
 
-      {/* Edit Account Modal */}
       {showEditModal && currentAccount && (
         <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
           <div className="bg-slate-800 rounded-xl border border-slate-700 shadow-2xl w-full max-w-md overflow-hidden">
@@ -553,7 +549,6 @@ function StudentAccountManagement() {
         </div>
       )}
 
-      {/* Reset Password Modal */}
       {showPasswordModal && currentAccount && (
         <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
           <div className="bg-slate-800 rounded-xl border border-slate-700 shadow-2xl w-full max-w-md overflow-hidden">
@@ -567,7 +562,7 @@ function StudentAccountManagement() {
                   <label className="block text-sm font-medium text-slate-300 mb-1">New Password</label>
                   <div className="relative">
                     <input
-                      type={showPassword ? "text" : "password"}
+                      type={showPassword[currentAccount.id] ? "text" : "password"}
                       name="password"
                       value={formData.password}
                       onChange={handleInputChange}
@@ -577,10 +572,10 @@ function StudentAccountManagement() {
                     <div className="absolute inset-y-0 right-0 flex items-center pr-3">
                       <button
                         type="button"
-                        onClick={() => setShowPassword(!showPassword)}
+                        onClick={() => togglePasswordVisibility(currentAccount.id)}
                         className="text-slate-400 hover:text-slate-300 focus:outline-none"
                       >
-                        {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
+                        {showPassword[currentAccount.id] ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
                       </button>
                     </div>
                     <button
@@ -640,7 +635,6 @@ function StudentAccountManagement() {
         </div>
       )}
 
-      {/* Delete Account Modal */}
       {showDeleteModal && currentAccount && (
         <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
           <div className="bg-slate-800 rounded-xl border border-slate-700 shadow-2xl w-full max-w-md overflow-hidden">

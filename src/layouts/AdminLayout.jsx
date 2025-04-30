@@ -1,6 +1,6 @@
 import { useState } from "react";
-import { Outlet, Link, useNavigate } from "react-router-dom"; // Add useNavigate
-import axios from "axios"; // Import axios
+import { Outlet, Link, useNavigate } from "react-router-dom";
+import axios from "axios";
 import {
   Users,
   GraduationCap,
@@ -11,14 +11,13 @@ import {
   LogOut,
   Menu,
   DoorClosed,
-  BookMarked, // Added missing BookMarked icon
+  BookMarked,
 } from "lucide-react";
 
 const AdminLayout = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
-  const navigate = useNavigate(); // Hook for navigation
+  const navigate = useNavigate();
 
-  // Logout handler
   const handleLogout = async () => {
     try {
       const refreshToken = localStorage.getItem("refresh_token");
@@ -30,12 +29,9 @@ const AdminLayout = () => {
     } catch (err) {
       console.error("Logout error:", err);
     } finally {
-      // Clear authentication tokens from localStorage
       localStorage.removeItem("access_token");
       localStorage.removeItem("refresh_token");
       localStorage.removeItem("username");
-
-      // Redirect to admin login page
       navigate("/admin/login");
     }
   };
@@ -80,6 +76,7 @@ const AdminLayout = () => {
                   <Link
                     to={item.path || "#"}
                     className="flex items-center px-4 py-3 text-gray-300 hover:bg-slate-800 rounded-lg transition-all duration-200 group"
+                    onClick={() => console.log('Navigating to:', item.path)} // Debug
                   >
                     <span className="inline-flex items-center justify-center h-9 w-9 text-sm font-semibold rounded-lg bg-slate-800 group-hover:bg-slate-700 group-hover:text-white transition-all duration-200">
                       {item.icon}
@@ -93,7 +90,7 @@ const AdminLayout = () => {
 
           <div className="p-4 border-t border-slate-700">
             <button
-              onClick={handleLogout} // Reference the defined handleLogout function
+              onClick={handleLogout}
               className="flex items-center px-4 py-3 text-gray-300 hover:bg-slate-800 rounded-lg transition-all duration-200 group w-full text-left"
             >
               <span className="inline-flex items-center justify-center h-9 w-9 text-sm font-semibold rounded-lg bg-slate-800 group-hover:bg-red-600 transition-all duration-200">

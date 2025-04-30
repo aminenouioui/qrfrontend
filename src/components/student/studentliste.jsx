@@ -2,8 +2,8 @@ import { useState, useRef, useEffect } from "react";
 import { Search, Plus, Filter, ChevronLeft, ChevronRight, Download, Trash2, Edit, Eye, X, Upload } from "lucide-react";
 import { Canvas } from "@react-three/fiber";
 import { OrbitControls, PerspectiveCamera, Environment, Html } from "@react-three/drei";
-import { useNavigate } from "react-router-dom"; // Replaced useRouter with useNavigate
-import api from "../api"; // Adjust path based on your structure
+import { useNavigate } from "react-router-dom";
+import api from "../api";
 
 // Add Student Modal Component
 function AddStudentModal({ isOpen, onClose, onAddStudent, levels }) {
@@ -17,6 +17,15 @@ function AddStudentModal({ isOpen, onClose, onAddStudent, levels }) {
     numero: "",
     photo: null,
     admission_s: "att",
+    // Add parent fields
+    parent_nom: "",
+    parent_prenom: "",
+    parent_adresse: "",
+    parent_mail: "",
+    parent_numero: "",
+    parent_relationship: "guardian",
+    parent_is_emergency_contact: true,
+    parent_profession: "",
   });
   const [previewUrl, setPreviewUrl] = useState("/media/placeholder.svg");
   const fileInputRef = useRef(null);
@@ -34,6 +43,14 @@ function AddStudentModal({ isOpen, onClose, onAddStudent, levels }) {
         numero: "",
         photo: null,
         admission_s: "att",
+        parent_nom: "",
+        parent_prenom: "",
+        parent_adresse: "",
+        parent_mail: "",
+        parent_numero: "",
+        parent_relationship: "guardian",
+        parent_is_emergency_contact: true,
+        parent_profession: "",
       });
       setPreviewUrl("/media/placeholder.svg");
       setError(null);
@@ -41,8 +58,11 @@ function AddStudentModal({ isOpen, onClose, onAddStudent, levels }) {
   }, [isOpen, levels]);
 
   const handleInputChange = (e) => {
-    const { name, value } = e.target;
-    setNewStudent({ ...newStudent, [name]: value });
+    const { name, value, type, checked } = e.target;
+    setNewStudent({
+      ...newStudent,
+      [name]: type === "checkbox" ? checked : value,
+    });
   };
 
   const handlePhotoChange = (e) => {
@@ -56,6 +76,7 @@ function AddStudentModal({ isOpen, onClose, onAddStudent, levels }) {
   const handleSubmit = async (e) => {
     e.preventDefault();
     const formData = new FormData();
+    // Student fields
     formData.append("nom", newStudent.nom);
     formData.append("prenom", newStudent.prenom);
     formData.append("date_naissance", newStudent.date_naissance);
@@ -67,9 +88,18 @@ function AddStudentModal({ isOpen, onClose, onAddStudent, levels }) {
     if (newStudent.photo) {
       formData.append("photo", newStudent.photo);
     }
+    // Parent fields
+    formData.append("parent_nom", newStudent.parent_nom);
+    formData.append("parent_prenom", newStudent.parent_prenom);
+    formData.append("parent_adresse", newStudent.parent_adresse);
+    formData.append("parent_mail", newStudent.parent_mail);
+    formData.append("parent_numero", newStudent.parent_numero);
+    formData.append("parent_relationship", newStudent.parent_relationship);
+    formData.append("parent_is_emergency_contact", newStudent.parent_is_emergency_contact);
+    formData.append("parent_profession", newStudent.parent_profession);
 
     try {
-      const response = await api.post("/api/students/add/", formData, {
+      const response = await api.post("api/students/add/", formData, {
         headers: { "Content-Type": "multipart/form-data" },
       });
       onAddStudent(response.data);
@@ -93,63 +123,298 @@ function AddStudentModal({ isOpen, onClose, onAddStudent, levels }) {
         {error && <div className="text-red-400 mb-4">{error}</div>}
         <div style={{ maxHeight: "60vh", overflowY: "auto" }}>
           <form onSubmit={handleSubmit}>
+            {/* Student Photo */}
             <div className="mb-4">
               <label className="block text-sm font-medium text-gray-300 mb-1">Photo</label>
               <div className="flex items-center gap-4">
                 <div className="relative w-24 h-24 bg-[#2a3a4f] rounded-lg overflow-hidden">
-                  <img src={previewUrl} alt="Preview" className="w-full h-full object-cover" onError={(e) => (e.target.src = "/media/placeholder.svg")} />
+                  <img
+                    src={previewUrl}
+                    alt="Preview"
+                    className="w-full h-full object-cover"
+                    onError={(e) => (e.target.src = "/media/placeholder.svg")}
+                  />
                 </div>
-                <button type="button" onClick={() => fileInputRef.current.click()} className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-3 py-2 rounded-lg text-sm">
+                <button
+                  type="button"
+                  onClick={() => fileInputRef.current.click()}
+                  className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-3 py-2 rounded-lg text-sm"
+                >
                   <Upload size={16} /> Upload Photo
                 </button>
-                <input type="file" ref={fileInputRef} onChange={handlePhotoChange} accept="image/*" className="hidden" />
+                <input
+                  type="file"
+                  ref={fileInputRef}
+                  onChange={handlePhotoChange}
+                  accept="image/*"
+                  className="hidden"
+                />
               </div>
             </div>
+
+            {/* Student Fields */}
             <div className="grid grid-cols-2 gap-4 mb-4">
               <div>
-                <label htmlFor="prenom" className="block text-sm font-medium text-gray-300 mb-1">Prénom</label>
-                <input type="text" id="prenom" name="prenom" value={newStudent.prenom} onChange={handleInputChange} required className="w-full bg-[#273549] border border-gray-700 rounded-lg px-3 py-2 text-white" placeholder="First Name" />
+                <label htmlFor="prenom" className="block text-sm font-medium text-gray-300 mb-1">
+                  Prénom
+                </label>
+                <input
+                  type="text"
+                  id="prenom"
+                  name="prenom"
+                  value={newStudent.prenom}
+                  onChange={handleInputChange}
+                  required
+                  className="w-full bg-[#273549] border border-gray-700 rounded-lg px-3 py-2 text-white"
+                  placeholder="First Name"
+                />
               </div>
               <div>
-                <label htmlFor="nom" className="block text-sm font-medium text-gray-300 mb-1">Nom</label>
-                <input type="text" id="nom" name="nom" value={newStudent.nom} onChange={handleInputChange} required className="w-full bg-[#273549] border border-gray-700 rounded-lg px-3 py-2 text-white" placeholder="Last Name" />
+                <label htmlFor="nom" className="block text-sm font-medium text-gray-300 mb-1">
+                  Nom
+                </label>
+                <input
+                  type="text"
+                  id="nom"
+                  name="nom"
+                  value={newStudent.nom}
+                  onChange={handleInputChange}
+                  required
+                  className="w-full bg-[#273549] border border-gray-700 rounded-lg px-3 py-2 text-white"
+                  placeholder="Last Name"
+                />
               </div>
             </div>
             <div className="mb-4">
-              <label htmlFor="date_naissance" className="block text-sm font-medium text-gray-300 mb-1">Date de Naissance</label>
-              <input type="date" id="date_naissance" name="date_naissance" value={newStudent.date_naissance} onChange={handleInputChange} className="w-full bg-[#273549] border border-gray-700 rounded-lg px-3 py-2 text-white" />
+              <label htmlFor="date_naissance" className="block text-sm font-medium text-gray-300 mb-1">
+                Date de Naissance
+              </label>
+              <input
+                type="date"
+                id="date_naissance"
+                name="date_naissance"
+                value={newStudent.date_naissance}
+                onChange={handleInputChange}
+                className="w-full bg-[#273549] border border-gray-700 rounded-lg px-3 py-2 text-white"
+              />
             </div>
             <div className="mb-4">
-              <label htmlFor="adresse" className="block text-sm font-medium text-gray-300 mb-1">Adresse</label>
-              <input type="text" id="adresse" name="adresse" value={newStudent.adresse} onChange={handleInputChange} className="w-full bg-[#273549] border border-gray-700 rounded-lg px-3 py-2 text-white" placeholder="Address" />
+              <label htmlFor="adresse" className="block text-sm font-medium text-gray-300 mb-1">
+                Adresse
+              </label>
+              <input
+                type="text"
+                id="adresse"
+                name="adresse"
+                value={newStudent.adresse}
+                onChange={handleInputChange}
+                className="w-full bg-[#273549] border border-gray-700 rounded-lg px-3 py-2 text-white"
+                placeholder="Address"
+              />
             </div>
             <div className="mb-4">
-              <label htmlFor="mail" className="block text-sm font-medium text-gray-300 mb-1">Email</label>
-              <input type="email" id="mail" name="mail" value={newStudent.mail} onChange={handleInputChange} required className="w-full bg-[#273549] border border-gray-700 rounded-lg px-3 py-2 text-white" placeholder="Email" />
+              <label htmlFor="mail" className="block text-sm font-medium text-gray-300 mb-1">
+                Email
+              </label>
+              <input
+                type="email"
+                id="mail"
+                name="mail"
+                value={newStudent.mail}
+                onChange={handleInputChange}
+                required
+                className="w-full bg-[#273549] border border-gray-700 rounded-lg px-3 py-2 text-white"
+                placeholder="Email"
+              />
             </div>
             <div className="mb-4">
-              <label htmlFor="numero" className="block text-sm font-medium text-gray-300 mb-1">Numéro</label>
-              <input type="text" id="numero" name="numero" value={newStudent.numero} onChange={handleInputChange} required className="w-full bg-[#273549] border border-gray-700 rounded-lg px-3 py-2 text-white" placeholder="Phone Number" />
+              <label htmlFor="numero" className="block text-sm font-medium text-gray-300 mb-1">
+                Numéro
+              </label>
+              <input
+                type="text"
+                id="numero"
+                name="numero"
+                value={newStudent.numero}
+                onChange={handleInputChange}
+                required
+                className="w-full bg-[#273549] border border-gray-700 rounded-lg px-3 py-2 text-white"
+                placeholder="Phone Number"
+              />
             </div>
             <div className="mb-6">
-              <label htmlFor="level" className="block text-sm font-medium text-gray-300 mb-1">Level</label>
-              <select id="level" name="level" value={newStudent.level} onChange={handleInputChange} className="w-full bg-[#273549] border border-gray-700 rounded-lg px-3 py-2 text-white">
+              <label htmlFor="level" className="block text-sm font-medium text-gray-300 mb-1">
+                Level
+              </label>
+              <select
+                id="level"
+                name="level"
+                value={newStudent.level}
+                onChange={handleInputChange}
+                className="w-full bg-[#273549] border border-gray-700 rounded-lg px-3 py-2 text-white"
+              >
                 {levels.map((level) => (
-                  <option key={level.id} value={level.id}>{level.level}</option>
+                  <option key={level.id} value={level.id}>
+                    {level.level}
+                  </option>
                 ))}
               </select>
             </div>
             <div className="mb-6">
-              <label htmlFor="admission_s" className="block text-sm font-medium text-gray-300 mb-1">Admission Status</label>
-              <select id="admission_s" name="admission_s" value={newStudent.admission_s} onChange={handleInputChange} className="w-full bg-[#273549] border border-gray-700 rounded-lg px-3 py-2 text-white">
+              <label htmlFor="admission_s" className="block text-sm font-medium text-gray-300 mb-1">
+                Admission Status
+              </label>
+              <select
+                id="admission_s"
+                name="admission_s"
+                value={newStudent.admission_s}
+                onChange={handleInputChange}
+                className="w-full bg-[#273549] border border-gray-700 rounded-lg px-3 py-2 text-white"
+              >
                 <option value="att">En Attente</option>
                 <option value="acc">Accepté</option>
                 <option value="ref">Refusé</option>
               </select>
             </div>
+
+            {/* Parent Fields */}
+            <h3 className="text-lg font-semibold text-gray-300 mb-4">Parent Information</h3>
+            <div className="grid grid-cols-2 gap-4 mb-4">
+              <div>
+                <label htmlFor="parent_prenom" className="block text-sm font-medium text-gray-300 mb-1">
+                  Parent Prénom
+                </label>
+                <input
+                  type="text"
+                  id="parent_prenom"
+                  name="parent_prenom"
+                  value={newStudent.parent_prenom}
+                  onChange={handleInputChange}
+                  required
+                  className="w-full bg-[#273549] border border-gray-700 rounded-lg px-3 py-2 text-white"
+                  placeholder="Parent First Name"
+                />
+              </div>
+              <div>
+                <label htmlFor="parent_nom" className="block text-sm font-medium text-gray-300 mb-1">
+                  Parent Nom
+                </label>
+                <input
+                  type="text"
+                  id="parent_nom"
+                  name="parent_nom"
+                  value={newStudent.parent_nom}
+                  onChange={handleInputChange}
+                  required
+                  className="w-full bg-[#273549] border border-gray-700 rounded-lg px-3 py-2 text-white"
+                  placeholder="Parent Last Name"
+                />
+              </div>
+            </div>
+            <div className="mb-4">
+              <label htmlFor="parent_adresse" className="block text-sm font-medium text-gray-300 mb-1">
+                Parent Adresse
+              </label>
+              <input
+                type="text"
+                id="parent_adresse"
+                name="parent_adresse"
+                value={newStudent.parent_adresse}
+                onChange={handleInputChange}
+                className="w-full bg-[#273549] border border-gray-700 rounded-lg px-3 py-2 text-white"
+                placeholder="Parent Address"
+              />
+            </div>
+            <div className="mb-4">
+              <label htmlFor="parent_mail" className="block text-sm font-medium text-gray-300 mb-1">
+                Parent Email
+              </label>
+              <input
+                type="email"
+                id="parent_mail"
+                name="parent_mail"
+                value={newStudent.parent_mail}
+                onChange={handleInputChange}
+                required
+                className="w-full bg-[#273549] border border-gray-700 rounded-lg px-3 py-2 text-white"
+                placeholder="Parent Email"
+              />
+            </div>
+            <div className="mb-4">
+              <label htmlFor="parent_numero" className="block text-sm font-medium text-gray-300 mb-1">
+                Parent Numéro
+              </label>
+              <input
+                type="text"
+                id="parent_numero"
+                name="parent_numero"
+                value={newStudent.parent_numero}
+                onChange={handleInputChange}
+                required
+                className="w-full bg-[#273549] border border-gray-700 rounded-lg px-3 py-2 text-white"
+                placeholder="Parent Phone Number"
+              />
+            </div>
+            <div className="mb-4">
+              <label htmlFor="parent_relationship" className="block text-sm font-medium text-gray-300 mb-1">
+                Parent Relationship
+              </label>
+              <select
+                id="parent_relationship"
+                name="parent_relationship"
+                value={newStudent.parent_relationship}
+                onChange={handleInputChange}
+                className="w-full bg-[#273549] border border-gray-700 rounded-lg px-3 py-2 text-white"
+              >
+                <option value="father">Father</option>
+                <option value="mother">Mother</option>
+                <option value="guardian">Guardian</option>
+                <option value="other">Other</option>
+              </select>
+            </div>
+            <div className="mb-4 flex items-center">
+              <input
+                type="checkbox"
+                id="parent_is_emergency_contact"
+                name="parent_is_emergency_contact"
+                checked={newStudent.parent_is_emergency_contact}
+                onChange={handleInputChange}
+                className="h-4 w-4 text-blue-600 border-gray-700 rounded bg-[#273549]"
+              />
+              <label htmlFor="parent_is_emergency_contact" className="ml-2 text-sm text-gray-300">
+                Emergency Contact
+              </label>
+            </div>
+            <div className="mb-6">
+              <label htmlFor="parent_profession" className="block text-sm font-medium text-gray-300 mb-1">
+                Parent Profession
+              </label>
+              <input
+                type="text"
+                id="parent_profession"
+                name="parent_profession"
+                value={newStudent.parent_profession}
+                onChange={handleInputChange}
+                className="w-full bg-[#273549] border border-gray-700 rounded-lg px-3 py-2 text-white"
+                placeholder="Parent Profession"
+              />
+            </div>
+
+            {/* Form Actions */}
             <div className="flex justify-end gap-3 mt-4">
-              <button type="button" onClick={onClose} className="px-4 py-2 border border-gray-600 rounded-lg text-gray-300 hover:bg-gray-700">Cancel</button>
-              <button type="submit" className="px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded-lg text-white">Add Student</button>
+              <button
+                type="button"
+                onClick={onClose}
+                className="px-4 py-2 border border-gray-600 rounded-lg text-gray-300 hover:bg-gray-700"
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                className="px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded-lg text-white"
+              >
+                Add Student
+              </button>
             </div>
           </form>
         </div>
@@ -405,7 +670,7 @@ export default function StudentList() {
   const [studentToEdit, setStudentToEdit] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const navigate = useNavigate(); // Replaced useRouter with useNavigate
+  const navigate = useNavigate();
 
   useEffect(() => {
     const fetchData = async () => {
@@ -475,7 +740,7 @@ export default function StudentList() {
   const levelOptions = [{ id: "All", level: "All Levels" }, ...levels];
 
   const handleViewDetails = (studentId) => {
-    navigate(`/admin/studentdetail?id=${studentId}`); // Use navigate instead of router.push
+    navigate(`/admin/studentdetail?id=${studentId}`);
   };
 
   if (loading) return <div className="min-h-screen bg-[#111827] text-white p-6">Loading...</div>;

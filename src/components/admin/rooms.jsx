@@ -1,8 +1,7 @@
-"use client";
-
 import { useState, useEffect } from "react";
 import { ArrowLeft, Search, Plus, Edit, Trash2, X, Save, AlertCircle, Home } from "lucide-react";
-import api from "../api"; // Ensure this path is correct
+import { useNavigate } from "react-router-dom";
+import api from "../api";
 
 export default function Rooms() {
   const [searchQuery, setSearchQuery] = useState("");
@@ -13,6 +12,7 @@ export default function Rooms() {
   const [roomsData, setRoomsData] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const [formData, setFormData] = useState({
     id: "",
@@ -20,23 +20,26 @@ export default function Rooms() {
     capacity: 30,
   });
 
-  const API_URL = "/api/classes/"; // Base URL corrected to match backend
+  const navigate = useNavigate();
+  const API_URL = "/api/classes/";
 
   useEffect(() => {
     const fetchRooms = async () => {
       try {
         const response = await api.get(`${API_URL}list/`);
+        console.log("Rooms API response:", response.data); // Debug
         const data = Array.isArray(response.data) ? response.data : [];
         setRoomsData(data);
         setLoading(false);
       } catch (err) {
-        console.error("Error fetching rooms:", err.response ? err.response.data : err.message);
+        console.error("Error fetching rooms:", err.response?.data || err.message);
         setError("Failed to load rooms. Please try again later.");
         setRoomsData([]);
         setLoading(false);
       }
     };
     fetchRooms();
+    console.log('Rooms rendered at:', window.location.pathname);
   }, []);
 
   const filteredRooms = roomsData.filter(
@@ -70,60 +73,86 @@ export default function Rooms() {
   };
 
   const handleSaveNewRoom = async () => {
+    if (isSubmitting) return;
+    if (!formData.name.trim()) {
+      setError("Room name is required.");
+      return;
+    }
+    if (formData.capacity <= 0) {
+      setError("Capacity must be greater than 0.");
+      return;
+    }
+    setIsSubmitting(true);
     try {
       const response = await api.post(`${API_URL}add/`, formData);
+      console.log("Add room response:", response.data); // Debug
       setRoomsData([...roomsData, response.data]);
       setIsAddingRoom(false);
       resetForm();
       setError(null);
     } catch (err) {
-      console.error("Error adding room:", err.response ? err.response.data : err.message);
+      console.error("Error adding room:", err.response?.data || err.message);
       setError(
-        `Failed to add room: ${
-          err.response ? err.response.data.detail || JSON.stringify(err.response.data) : err.message
-        }`
+        err.response?.data?.name?.[0] ||
+        err.response?.data?.capacity?.[0] ||
+        err.response?.data?.detail ||
+        "Failed to add room."
       );
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
-  // Note: Update functionality not supported by backend yet. Disabled for now.
   const handleUpdateRoom = async () => {
-    if (!selectedRoom) return;
-    setError("Room updating is not yet supported by the backend.");
-    // Uncomment and adjust once backend supports PUT /api/classes/<int:id>/
-    /*
+    if (isSubmitting || !selectedRoom) return;
+    if (!formData.name.trim()) {
+      setError("Room name is required.");
+      return;
+    }
+    if (formData.capacity <= 0) {
+      setError("Capacity must be greater than 0.");
+      return;
+    }
+    setIsSubmitting(true);
     try {
-      const response = await api.put(`${API_URL}${formData.id}/`, formData);
+      const response = await api.put(`${API_URL}update/${formData.id}/`, formData);
+      console.log("Update room response:", response.data); // Debug
       setRoomsData(roomsData.map((room) => (room.id === formData.id ? response.data : room)));
       setIsEditingRoom(false);
+      resetForm();
       setSelectedRoom(null);
       setError(null);
     } catch (err) {
-      console.error("Error updating room:", err.response ? err.response.data : err.message);
+      console.error("Error updating room:", err.response?.data || err.message);
       setError(
-        `Failed to update room: ${
-          err.response ? err.response.data.detail || JSON.stringify(err.response.data) : err.message
-        }`
+        err.response?.data?.name?.[0] ||
+        err.response?.data?.capacity?.[0] ||
+        err.response?.data?.detail ||
+        "Failed to update room."
       );
+    } finally {
+      setIsSubmitting(false);
     }
-    */
   };
 
   const handleDeleteRoom = async () => {
     if (!selectedRoom) return;
+    setIsSubmitting(true);
     try {
       await api.delete(`${API_URL}delete/${selectedRoom.id}/`);
+      console.log("Room deleted:", selectedRoom.id); // Debug
       setRoomsData(roomsData.filter((room) => room.id !== selectedRoom.id));
       setShowDeleteConfirm(false);
       setSelectedRoom(null);
       setError(null);
     } catch (err) {
-      console.error("Error deleting room:", err.response ? err.response.data : err.message);
+      console.error("Error deleting room:", err.response?.data || err.message);
       setError(
-        `Failed to delete room: ${
-          err.response ? err.response.data.detail || JSON.stringify(err.response.data) : err.message
-        }`
+        err.response?.data?.detail ||
+        "Failed to delete room."
       );
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -132,6 +161,7 @@ export default function Rooms() {
     setIsEditingRoom(false);
     setShowDeleteConfirm(false);
     setError(null);
+    resetForm();
   };
 
   const resetForm = () => {
@@ -149,7 +179,7 @@ export default function Rooms() {
           <div className="flex items-center gap-3">
             <button
               className="bg-blue-600/20 border border-blue-600/30 p-2 rounded-lg hover:bg-blue-600/30 transition-colors"
-              onClick={() => window.history.back()}
+              onClick={() => navigate("/admin/dashboard")}
             >
               <ArrowLeft className="h-5 w-5" />
             </button>
@@ -285,9 +315,10 @@ export default function Rooms() {
                 <button
                   className="px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded-lg flex items-center gap-2"
                   onClick={isAddingRoom ? handleSaveNewRoom : handleUpdateRoom}
+                  disabled={isSubmitting}
                 >
                   <Save className="h-4 w-4" />
-                  <span>{isAddingRoom ? "Add Room" : "Update Room"}</span>
+                  <span>{isSubmitting ? "Saving..." : isAddingRoom ? "Add Room" : "Update Room"}</span>
                 </button>
               </div>
             </div>
@@ -314,9 +345,10 @@ export default function Rooms() {
                 <button
                   className="px-4 py-2 bg-red-600 hover:bg-red-700 rounded-lg flex items-center gap-2"
                   onClick={handleDeleteRoom}
+                  disabled={isSubmitting}
                 >
                   <Trash2 className="h-4 w-4" />
-                  <span>Delete Room</span>
+                  <span>{isSubmitting ? "Deleting..." : "Delete Room"}</span>
                 </button>
               </div>
             </div>

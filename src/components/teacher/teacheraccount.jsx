@@ -9,18 +9,18 @@ import {
 import api from "../api";
 
 // Reusable CreateModal Component
-const CreateModal = ({ isOpen, onClose, students, onCreate, selectedStudent, setSelectedStudent, formData, setFormData, isLoading }) => {
+const CreateModal = ({ isOpen, onClose, teachers, onCreate, selectedTeacher, setSelectedTeacher, formData, setFormData, isLoading }) => {
   if (!isOpen) return null;
 
-  const handleStudentChange = (e) => {
-    const studentId = e.target.value;
-    setSelectedStudent(studentId);
-    const student = students.find((s) => s.id === parseInt(studentId));
-    if (student) {
+  const handleTeacherChange = (e) => {
+    const teacherId = e.target.value;
+    setSelectedTeacher(teacherId);
+    const teacher = teachers.find((t) => t.id === parseInt(teacherId));
+    if (teacher) {
       setFormData({
-        name: `${student.prenom} ${student.nom}`,
-        email: student.mail,
-        username: student.mail.split("@")[0],
+        name: `${teacher.prenom} ${teacher.nom}`,
+        email: teacher.mail,
+        username: teacher.mail.split("@")[0],
         password: "",
         status: "Active",
       });
@@ -31,23 +31,23 @@ const CreateModal = ({ isOpen, onClose, students, onCreate, selectedStudent, set
     <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
       <div className="bg-slate-800 rounded-xl border border-slate-700 shadow-2xl w-full max-w-md overflow-hidden">
         <div className="p-6 border-b border-slate-700">
-          <h3 className="text-xl font-bold text-slate-100">Create New Student Account</h3>
-          <p className="text-sm text-slate-400">Select a student to create an account</p>
+          <h3 className="text-xl font-bold text-slate-100">Create New Teacher Account</h3>
+          <p className="text-sm text-slate-400">Select a teacher to create an account</p>
         </div>
         <div className="p-6">
           <div className="space-y-4">
             <div>
-              <label className="block text-sm font-medium text-slate-300 mb-1">Select Student</label>
+              <label className="block text-sm font-medium text-slate-300 mb-1">Select Teacher</label>
               <select
-                value={selectedStudent}
-                onChange={handleStudentChange}
+                value={selectedTeacher}
+                onChange={handleTeacherChange}
                 className="w-full px-4 py-2 rounded-lg bg-slate-700 border border-slate-600 text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
                 disabled={isLoading}
               >
-                <option value="">-- Select a student --</option>
-                {students.filter((student) => !student.is_account_created).map((student) => (
-                  <option key={student.id} value={student.id}>
-                    {student.prenom} {student.nom} ({student.mail})
+                <option value="">-- Select a teacher --</option>
+                {teachers.filter((teacher) => !teacher.is_account_created).map((teacher) => (
+                  <option key={teacher.id} value={teacher.id}>
+                    {teacher.prenom} {teacher.nom} ({teacher.mail})
                   </option>
                 ))}
               </select>
@@ -75,8 +75,9 @@ const CreateModal = ({ isOpen, onClose, students, onCreate, selectedStudent, set
               <input
                 type="text"
                 value={formData.username}
-                className="w-full px-4 py-2 rounded-lg bg-slate-700 border border-slate-600 text-white"
-                disabled
+                onChange={(e) => setFormData((prev) => ({ ...prev, username: e.target.value }))}
+                className="w-full px-4 py-2 rounded-lg bg-slate-700 border border-slate-600 text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                disabled={isLoading}
               />
             </div>
           </div>
@@ -92,7 +93,7 @@ const CreateModal = ({ isOpen, onClose, students, onCreate, selectedStudent, set
           <button
             className="px-4 py-2 rounded-lg bg-blue-600 text-white hover:bg-blue-700 flex items-center gap-2"
             onClick={onCreate}
-            disabled={!selectedStudent || isLoading}
+            disabled={!selectedTeacher || !formData.username || isLoading}
           >
             {isLoading ? "Creating..." : "Create Account"}
           </button>
@@ -115,7 +116,7 @@ const EditModal = ({ isOpen, onClose, currentAccount, onUpdate, formData, setFor
     <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
       <div className="bg-slate-800 rounded-xl border border-slate-700 shadow-2xl w-full max-w-md overflow-hidden">
         <div className="p-6 border-b border-slate-700">
-          <h3 className="text-xl font-bold text-slate-100">Edit Student Account</h3>
+          <h3 className="text-xl font-bold text-slate-100">Edit Teacher Account</h3>
           <p className="text-sm text-slate-400">Update account details for {currentAccount.name}</p>
         </div>
         <div className="p-6">
@@ -261,9 +262,9 @@ const ResetPasswordModal = ({ isOpen, onClose, currentAccount, onReset, formData
   );
 };
 
-function StudentAccountManagement() {
-  const [studentAccounts, setStudentAccounts] = useState([]);
-  const [students, setStudents] = useState([]);
+function TeacherAccountManagement() {
+  const [teacherAccounts, setTeacherAccounts] = useState([]);
+  const [teachers, setTeachers] = useState([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("All");
   const [showCreateModal, setShowCreateModal] = useState(false);
@@ -272,7 +273,7 @@ function StudentAccountManagement() {
   const [currentAccount, setCurrentAccount] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
   const [notification, setNotification] = useState(null);
-  const [selectedStudent, setSelectedStudent] = useState("");
+  const [selectedTeacher, setSelectedTeacher] = useState("");
   const [formData, setFormData] = useState({
     name: "",
     email: "",
@@ -285,12 +286,22 @@ function StudentAccountManagement() {
     const fetchData = async () => {
       setIsLoading(true);
       try {
-        const [studentsRes, accountsRes] = await Promise.all([
-          api.get("/api/students/list/"),
-          api.get("/api/student-accounts/"),
-        ]);
-        setStudents(studentsRes.data);
-        setStudentAccounts(accountsRes.data);
+        const teachersRes = await api.get("/api/teachers/list/");
+        console.log("Initial teachers fetched:", teachersRes.data);  // Debug
+        setTeachers(teachersRes.data);
+        const accounts = teachersRes.data
+          .filter((teacher) => teacher.is_account_created)
+          .map((teacher) => ({
+            id: teacher.id,
+            name: `${teacher.prenom} ${teacher.nom}`,
+            mail: teacher.mail,
+            username: teacher.username || teacher.mail.split("@")[0],
+            plain_password: teacher.plain_password || "Not available",
+            status: teacher.status || "Active",
+            lastLogin: teacher.lastLogin || null,
+          }));
+        console.log("Mapped teacher accounts:", accounts);  // Debug
+        setTeacherAccounts(accounts);
       } catch (err) {
         showNotification(`Error fetching data: ${err.response?.data?.detail || err.message}`, "error");
       } finally {
@@ -302,10 +313,10 @@ function StudentAccountManagement() {
 
   const debouncedSearch = useCallback(debounce((value) => setSearchTerm(value), 300), []);
 
-  const filteredAccounts = studentAccounts.filter((account) => {
+  const filteredAccounts = teacherAccounts.filter((account) => {
     const matchesSearch =
       account.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      account.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      account.mail.toLowerCase().includes(searchTerm.toLowerCase()) ||
       account.username.toLowerCase().includes(searchTerm.toLowerCase()) ||
       account.id.toString().includes(searchTerm.toLowerCase());
     const matchesStatus = statusFilter === "All" || account.status === statusFilter;
@@ -318,22 +329,33 @@ function StudentAccountManagement() {
   };
 
   const createAccount = async () => {
-    if (!selectedStudent) {
-      showNotification("Please select a student", "error");
+    if (!selectedTeacher) {
+      showNotification("Please select a teacher", "error");
       return;
     }
     setIsLoading(true);
     try {
-      const response = await api.post(`/create-student-account/${selectedStudent}/`);
-      const newAccount = { ...response.data };
-      setStudentAccounts((prev) => [...prev, newAccount]);
+      const response = await api.post(`/api/teachers/account/add/${selectedTeacher}/`, {
+        username: formData.username,
+      });
+      const newAccount = {
+        id: response.data.id,
+        name: response.data.name,
+        mail: response.data.email,
+        username: response.data.username,
+        plain_password: response.data.password,
+        status: response.data.status,
+        lastLogin: response.data.lastLogin,
+      };
+      console.log("New account created:", newAccount);  // Debug
+      setTeacherAccounts((prev) => [...prev, newAccount]);
       setShowCreateModal(false);
-      showNotification(
-        `Account created! Username: ${newAccount.username}, Password: ${newAccount.password}`,
-        "success"
-      );
+      showNotification(`Account created! Username: ${newAccount.username}, Password: ${newAccount.plain_password}`, "success");
       setFormData({ name: "", email: "", username: "", password: "", status: "Active" });
-      setSelectedStudent("");
+      setSelectedTeacher("");
+      const teachersRes = await api.get("/api/teachers/list/");
+      console.log("Refreshed teachers after creation:", teachersRes.data);  // Debug
+      setTeachers(teachersRes.data);
     } catch (err) {
       showNotification(err.response?.data?.error || "Failed to create account", "error");
     } finally {
@@ -345,14 +367,30 @@ function StudentAccountManagement() {
     if (!currentAccount) return;
     setIsLoading(true);
     try {
-      const response = await api.put(`/api/student-accounts/${currentAccount.id}/`, formData);
-      setStudentAccounts((prev) =>
-        prev.map((acc) => (acc.id === response.data.id ? { ...response.data } : acc))
+      const [prenom, nom] = formData.name.split(" ");
+      const response = await api.put(`/api/teachers/edit/${currentAccount.id}/`, {
+        nom: nom || currentAccount.nom,
+        prenom: prenom || currentAccount.prenom,
+        mail: formData.email,
+        username: formData.username,
+        status: formData.status,
+      });
+      const updatedAccount = {
+        id: response.data.teacher.id,
+        name: `${response.data.teacher.prenom} ${response.data.teacher.nom}`,
+        mail: response.data.teacher.mail,
+        username: response.data.account.username,
+        plain_password: response.data.teacher.plain_password || currentAccount.plain_password,
+        status: response.data.account.status,
+        lastLogin: currentAccount.lastLogin,
+      };
+      setTeacherAccounts((prev) =>
+        prev.map((acc) => (acc.id === updatedAccount.id ? updatedAccount : acc))
       );
       setShowEditModal(false);
       showNotification("Account updated successfully", "success");
     } catch (err) {
-      showNotification(err.response?.data?.detail || "Failed to update account", "error");
+      showNotification(err.response?.data?.error || "Failed to update account", "error");
     } finally {
       setIsLoading(false);
     }
@@ -362,12 +400,19 @@ function StudentAccountManagement() {
     if (!currentAccount) return;
     setIsLoading(true);
     try {
-      const response = await api.post(`/api/student-accounts/${currentAccount.id}/reset-password/`, { password: formData.password });
-      setStudentAccounts((prev) =>
-        prev.map((acc) => (acc.id === currentAccount.id ? { ...acc, password: formData.password } : acc))
+      const response = await api.post(`/api/teachers/account/reset-password/${currentAccount.id}/`, {
+        password: formData.password,
+      });
+      const updatedAccount = {
+        ...currentAccount,
+        plain_password: response.data.new_password,
+      };
+      setTeacherAccounts((prev) =>
+        prev.map((acc) => (acc.id === currentAccount.id ? updatedAccount : acc))
       );
       setShowResetPasswordModal(false);
-      showNotification(`Password reset successfully: ${formData.password}`, "success");
+      showNotification(`Password reset successfully: ${response.data.new_password}`, "success");
+      console.log("New password after reset:", response.data.new_password);  // Debug
     } catch (err) {
       showNotification(err.response?.data?.error || "Failed to reset password", "error");
     } finally {
@@ -379,13 +424,24 @@ function StudentAccountManagement() {
     const newStatus = account.status === "Active" ? "Inactive" : "Active";
     setIsLoading(true);
     try {
-      const response = await api.put(`/api/student-accounts/${account.id}/`, { ...account, status: newStatus });
-      setStudentAccounts((prev) =>
-        prev.map((acc) => (acc.id === account.id ? { ...response.data } : acc))
+      const response = await api.put(`/api/teachers/edit/${account.id}/`, {
+        status: newStatus,
+      });
+      const updatedAccount = {
+        id: response.data.teacher.id,
+        name: `${response.data.teacher.prenom} ${response.data.teacher.nom}`,
+        mail: response.data.teacher.mail,
+        username: response.data.account.username,
+        plain_password: response.data.teacher.plain_password || account.plain_password,
+        status: response.data.account.status,
+        lastLogin: account.lastLogin,
+      };
+      setTeacherAccounts((prev) =>
+        prev.map((acc) => (acc.id === account.id ? updatedAccount : acc))
       );
       showNotification(`Account set to ${newStatus}`, "success");
     } catch (err) {
-      showNotification(err.response?.data?.detail || "Failed to toggle status", "error");
+      showNotification(err.response?.data?.error || "Failed to toggle status", "error");
     } finally {
       setIsLoading(false);
     }
@@ -395,7 +451,7 @@ function StudentAccountManagement() {
     setCurrentAccount(account);
     setFormData({
       name: account.name,
-      email: account.email,
+      email: account.mail,
       username: account.username,
       password: "",
       status: account.status,
@@ -438,8 +494,8 @@ function StudentAccountManagement() {
       <div className="flex-1 flex flex-col overflow-hidden">
         <header className="bg-gradient-to-br from-slate-800 to-slate-900 shadow-md border-b border-slate-700">
           <div className="p-4">
-            <h1 className="text-2xl font-bold text-slate-100">Student Account Management</h1>
-            <p className="text-sm text-slate-400">Manage student accounts and credentials</p>
+            <h1 className="text-2xl font-bold text-slate-100">Teacher Account Management</h1>
+            <p className="text-sm text-slate-400">Manage teacher accounts and credentials</p>
           </div>
         </header>
 
@@ -511,9 +567,9 @@ function StudentAccountManagement() {
                         <tr key={account.id} className="hover:bg-slate-700/30 transition-colors">
                           <td className="px-6 py-4 text-sm font-medium text-slate-300">{account.id}</td>
                           <td className="px-6 py-4 text-sm text-slate-300">{account.name}</td>
-                          <td className="px-6 py-4 text-sm text-slate-300">{account.email}</td>
+                          <td className="px-6 py-4 text-sm text-slate-300">{account.mail}</td>
                           <td className="px-6 py-4 text-sm text-slate-300">{account.username}</td>
-                          <td className="px-6 py-4 text-sm text-slate-300">{account.password || "Not set"}</td>
+                          <td className="px-6 py-4 text-sm text-slate-300">{account.plain_password}</td>
                           <td className="px-6 py-4">
                             <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border ${getStatusBadge(account.status)}`}>
                               {account.status === "Active" && <div className="w-1.5 h-1.5 rounded-full bg-green-400 mr-1.5"></div>}
@@ -547,7 +603,17 @@ function StudentAccountManagement() {
                               </button>
                               <button
                                 className="text-red-400 hover:text-red-300"
-                                onClick={() => alert("Delete not implemented yet")}
+                                onClick={async () => {
+                                  try {
+                                    await api.delete(`/api/teachers/account/delete/${account.id}/`);
+                                    setTeacherAccounts((prev) => prev.filter((a) => a.id !== account.id));
+                                    showNotification("Account deleted successfully", "success");
+                                    const teachersRes = await api.get("/api/teachers/list/");
+                                    setTeachers(teachersRes.data);
+                                  } catch (err) {
+                                    showNotification("Failed to delete account", "error");
+                                  }
+                                }}
                                 title="Delete Account"
                               >
                                 <Trash2 className="h-4 w-4" />
@@ -573,10 +639,10 @@ function StudentAccountManagement() {
         <CreateModal
           isOpen={showCreateModal}
           onClose={() => setShowCreateModal(false)}
-          students={students}
+          teachers={teachers}
           onCreate={createAccount}
-          selectedStudent={selectedStudent}
-          setSelectedStudent={setSelectedStudent}
+          selectedTeacher={selectedTeacher}
+          setSelectedTeacher={setSelectedTeacher}
           formData={formData}
           setFormData={setFormData}
           isLoading={isLoading}
@@ -612,4 +678,5 @@ function StudentAccountManagement() {
     </div>
   );
 }
-export default StudentAccountManagement;
+
+export default TeacherAccountManagement;

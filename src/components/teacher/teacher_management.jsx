@@ -69,6 +69,8 @@ function Teacher_management() {
       color: "from-amber-500 to-amber-600",
       stats: "1,248 accounts",
       action: "Manage Accounts",
+      onClick: () => navigate('/admin/teacheraccount')
+
     },
     {
       title: "Teacher Attendance",
@@ -77,7 +79,7 @@ function Teacher_management() {
       color: "from-pink-500 to-pink-600",
       stats: "98.2% attendance",
       action: "View Records",
-      onClick: () => navigate('/admin/attendance')
+      onClick: () => navigate('/admin/teacherattendance')
     },
   ]
 

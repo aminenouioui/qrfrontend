@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import api from "../api"; // Ensure this path is correct
+import api from "../api";
 import {
   ArrowLeft,
   ChevronLeft,
@@ -52,11 +52,14 @@ export default function ClassSchedule() {
           api.get("/api/levels/list/"),
           api.get("/api/classes/list/"),
         ]);
+        console.log("Subjects:", subjectsRes.data);
+        console.log("Teachers:", teachersRes.data);
+        console.log("Levels:", levelsRes.data);
+        console.log("Classrooms:", classroomsRes.data);
         setSubjects(subjectsRes.data);
         setTeachers(teachersRes.data);
-        setLevels(levelsRes.data || []); // Ensure levels is an array even if empty
+        setLevels(levelsRes.data || []);
         setClassrooms(classroomsRes.data);
-        console.log("Fetched levels:", levelsRes.data); // Debug log
         setError(null);
       } catch (error) {
         console.error("Fetch error:", error.response ? error.response.data : error.message);
@@ -73,7 +76,7 @@ export default function ClassSchedule() {
   const fetchSchedulesByTeacher = async (teacherId) => {
     try {
       const response = await api.get(`/api/schedules/teacher/${teacherId}/`);
-      console.log("Fetched schedules:", response.data);
+      console.log("Schedules for teacher", teacherId, ":", response.data);
       setSchedules(response.data);
       setError(null);
     } catch (error) {
@@ -98,17 +101,33 @@ export default function ClassSchedule() {
     setSelectedTeacher(teacher);
   };
 
-  const getSubject = (subjectId) =>
-    subjects.find((s) => s.id === subjectId) || { id: "", nom: "Unknown Subject" };
+  const getSubject = (subjectObj) => {
+    const subject = subjects.find((s) => s.id === (subjectObj?.id || subjectObj)) || {
+      id: "",
+      nom: "Unknown Subject",
+    };
+    return subject;
+  };
+
   const getTeacher = (teacherId) =>
     teachers.find((t) => t.id === teacherId) || { id: "", nom: "Unknown", prenom: "" };
-  const getLevel = (levelId) => {
-    const level = levels.find((l) => l.id === levelId);
-    console.log("Looking for levelId:", levelId, "Found:", level); // Debug log
-    return level || { id: "", level: "Unknown Level" }; // Fallback
+
+  const getLevel = (levelObj) => {
+    const level = levels.find((l) => l.id === (levelObj?.id || levelObj)) || {
+      id: "",
+      level: "Unknown Level",
+    };
+    console.log("Looking for level:", levelObj, "Found:", level);
+    return level;
   };
-  const getClasse = (classeId) =>
-    classrooms.find((c) => c.id === classeId) || { id: "", name: "Unknown Classroom" };
+
+  const getClasse = (classeObj) => {
+    const classe = classrooms.find((c) => c.id === (classeObj?.id || classeObj)) || {
+      id: "",
+      name: "Unknown Classroom",
+    };
+    return classe;
+  };
 
   const normalizeTime = (time) => {
     if (!time) return time;
@@ -151,13 +170,13 @@ export default function ClassSchedule() {
   const handleEditClass = (classItem) => {
     setFormData({
       id: classItem.id,
-      subject: classItem.subject,
+      subject: classItem.subject?.id || classItem.subject,
       day: classItem.day,
       start_time: normalizeTime(classItem.start_time),
       end_time: normalizeTime(classItem.end_time),
       teacher: classItem.teacher,
-      classe: classItem.classe,
-      level: classItem.level || (levels.length > 0 ? levels[0].id : ""),
+      classe: classItem.classe?.id || classItem.classe,
+      level: classItem.level?.id || classItem.level || (levels.length > 0 ? levels[0].id : ""),
       notes: classItem.notes || "",
     });
     setIsEditingClass(true);
@@ -179,12 +198,11 @@ export default function ClassSchedule() {
       setError("Please select a level.");
       return;
     }
-    // Check for duplicates, now including start_time
     const isDuplicate = schedules.some(
       (schedule) =>
         schedule.teacher === formData.teacher &&
-        schedule.classe === formData.classe &&
-        schedule.subject === formData.subject &&
+        (schedule.classe?.id || schedule.classe) === formData.classe &&
+        (schedule.subject?.id || schedule.subject) === formData.subject &&
         schedule.day === formData.day &&
         normalizeTime(schedule.start_time) === formData.start_time
     );
@@ -193,9 +211,9 @@ export default function ClassSchedule() {
       return;
     }
     try {
-      console.log("Form data before save:", formData); // Debug log
+      console.log("Form data before save:", formData);
       const response = await api.post("/api/schedules/add/", formData);
-      console.log("New schedule added:", response.data); // Debug log
+      console.log("New schedule added:", response.data);
       setSchedules((prev) => [...prev, response.data]);
       await fetchSchedulesByTeacher(selectedTeacher.id);
       setIsAddingClass(false);
@@ -596,7 +614,7 @@ export default function ClassSchedule() {
             </div>
           </div>
         </div>
-      </main>
+      </main> 
     </div>
   );
 }

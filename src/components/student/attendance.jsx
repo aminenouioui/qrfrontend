@@ -41,7 +41,6 @@ export default function AttendanceTracking() {
     saving: false,
   });
   const [confirmDelete, setConfirmDelete] = useState(null);
-  const [attendanceVersion, setAttendanceVersion] = useState(0);
 
   // Fetch students and levels on component mount
   useEffect(() => {
@@ -49,8 +48,8 @@ export default function AttendanceTracking() {
       setLoading((prev) => ({ ...prev, students: true, levels: true }));
       try {
         const [studentsResponse, levelsResponse] = await Promise.all([
-          api.get("/api/students/list/"), // Matches student_qr
-          api.get("/api/levels/list/"),   // Matches student_qr
+          api.get("/api/students/list/"),
+          api.get("/api/levels/list/"),
         ]);
         console.log("Students fetched:", studentsResponse.data);
         console.log("Levels fetched:", levelsResponse.data);
@@ -90,7 +89,7 @@ export default function AttendanceTracking() {
     const fetchSubjects = async () => {
       setLoading((prev) => ({ ...prev, subjects: true }));
       try {
-        const response = await api.get("/api/subjects/list/"); // Matches teacher_qr
+        const response = await api.get("/api/subjects/list/");
         console.log("Subjects fetched:", response.data);
         setSubjects(response.data || []);
         setError(null);
@@ -111,7 +110,7 @@ export default function AttendanceTracking() {
         setLoading((prev) => ({ ...prev, schedule: true }));
         try {
           const levelId = selectedStudent.level;
-          const response = await api.get(`/api/schedules/level/${levelId}/`); // Matches student_qr
+          const response = await api.get(`/api/schedules/level/${levelId}/`);
           console.log(`Class schedule for level ${levelId}:`, response.data);
           setClassSchedule(response.data || []);
           setError(null);
@@ -128,30 +127,31 @@ export default function AttendanceTracking() {
     }
   }, [selectedStudent]);
 
-  // Fetch attendance data for the selected student
-  useEffect(() => {
-    if (selectedStudent) {
-      console.log(`Fetching attendance for student ${selectedStudent.id}`);
-      const fetchAttendance = async () => {
-        setLoading((prev) => ({ ...prev, attendance: true }));
-        try {
-          const response = await api.get(`/api/attendance/${selectedStudent.id}/`); // Matches student_qr
-          console.log(`Fetched attendance for ${selectedStudent.id}:`, response.data);
-          setAttendanceData((prev) => ({
-            ...prev,
-            [selectedStudent.id]: response.data || {},
-          }));
-          setError(null);
-          setLoading((prev) => ({ ...prev, attendance: false }));
-        } catch (error) {
-          console.error("Fetch attendance error:", error);
-          setError(`Failed to load attendance: ${error.message}`);
-          setLoading((prev) => ({ ...prev, attendance: false }));
-        }
-      };
-      fetchAttendance();
+  // Function to fetch attendance data
+  const fetchAttendance = async () => {
+    if (!selectedStudent) return;
+
+    setLoading((prev) => ({ ...prev, attendance: true }));
+    try {
+      const response = await api.get(`/api/attendance/${selectedStudent.id}/`);
+      console.log(`Fetched attendance for ${selectedStudent.id}:`, response.data);
+      setAttendanceData((prev) => ({
+        ...prev,
+        [selectedStudent.id]: response.data || {},
+      }));
+      setError(null);
+    } catch (error) {
+      console.error("Fetch attendance error:", error);
+      setError(`Failed to load attendance: ${error.message}`);
+    } finally {
+      setLoading((prev) => ({ ...prev, attendance: false }));
     }
-  }, [selectedStudent, attendanceVersion]);
+  };
+
+  // Fetch attendance data when selectedStudent changes
+  useEffect(() => {
+    fetchAttendance();
+  }, [selectedStudent]);
 
   // Filter students based on search and level
   const filteredStudents = students.filter((student) => {
@@ -176,7 +176,6 @@ export default function AttendanceTracking() {
   };
 
   const getClasseName = (classeId) => {
-    // Assuming classe is an ID; you may need to fetch classes if you want to display the name
     return `Room ${classeId}`; // Replace with proper fetching if needed
   };
 
@@ -249,7 +248,7 @@ export default function AttendanceTracking() {
       console.log(`Attendance check: student=${studentId}, class=${classId}, date=${formatDateKey(date)}, status=${status || "Not Set"}`);
       return status;
     },
-    [attendanceData, attendanceVersion],
+    [attendanceData],
   );
 
   // Update attendance status
@@ -276,11 +275,12 @@ export default function AttendanceTracking() {
         status,
       };
 
-      const response = await api.post("/api/attendance/add/", apiData); // Matches student_qr
+      const response = await api.post("/api/attendance/add/", apiData);
       console.log("POST response:", response.data);
 
-      // Force a re-render and refetch to ensure sync with backend
-      setAttendanceVersion((v) => v + 1);
+      // Refetch attendance data to sync with backend
+      await fetchAttendance();
+
       setError("Attendance saved successfully!");
       setTimeout(() => setError(null), 2000);
     } catch (error) {
@@ -307,7 +307,7 @@ export default function AttendanceTracking() {
     setError("Deleting attendance record...");
 
     try {
-      await api.delete(`/api/attendance/delete/${selectedStudent.id}/${classId}/${formatDateKey(date)}/`); // Matches student_qr
+      await api.delete(`/api/attendance/delete/${selectedStudent.id}/${classId}/${formatDateKey(date)}/`);
 
       // Update local state immediately
       setAttendanceData((prev) => {
@@ -318,7 +318,9 @@ export default function AttendanceTracking() {
         return updatedData;
       });
 
-      setAttendanceVersion((v) => v + 1);
+      // Refetch attendance data to sync with backend
+      await fetchAttendance();
+
       setSelectedClass(null);
       setSelectedDate(null);
       setConfirmDelete(null);

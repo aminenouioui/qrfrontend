@@ -5,7 +5,7 @@ import { Search, Plus, Filter, ChevronLeft, ChevronRight, Download, Trash2, Edit
 import { Canvas } from "@react-three/fiber";
 import { OrbitControls, PerspectiveCamera, Environment, Html } from "@react-three/drei";
 import { useNavigate } from "react-router-dom";
-import api from "../api"; // Import the configured API instance
+import api from "../api";
 
 // Add Teacher Modal Component
 function AddTeacherModal({ isOpen, onClose, onAddTeacher, levels, subjects }) {
@@ -253,7 +253,7 @@ function EditTeacherModal({ isOpen, onClose, onEditTeacher, teacher, levels, sub
     nom: teacher.nom || "",
     prenom: teacher.prenom || "",
     date_naissance: teacher.date_naissance || "",
-    subject: teacher.subject || subjects[0]?.id || "",
+    subject: teacher.subject?.id || subjects[0]?.id || "", // Adjusted for nested subject
     adresse: teacher.adresse || "",
     mail: teacher.mail || "",
     numero: teacher.numero || "",
@@ -271,7 +271,7 @@ function EditTeacherModal({ isOpen, onClose, onEditTeacher, teacher, levels, sub
         nom: teacher.nom || "",
         prenom: teacher.prenom || "",
         date_naissance: teacher.date_naissance || "",
-        subject: teacher.subject || subjects[0]?.id || "",
+        subject: teacher.subject?.id || subjects[0]?.id || "", // Adjusted for nested subject
         adresse: teacher.adresse || "",
         mail: teacher.mail || "",
         numero: teacher.numero || "",
@@ -489,7 +489,7 @@ function EditTeacherModal({ isOpen, onClose, onEditTeacher, teacher, levels, sub
 
 // 3D Teacher Card Component
 function TeacherCard({ teacher, index, totalTeachers, onDelete, onEdit, levels, subjects }) {
-  const subjectName = subjects.find((s) => s.id === teacher.subject)?.nom || "Unknown";
+  const subjectName = teacher.subject?.nom || subjects.find((s) => s.id === teacher.subject)?.nom || "Unknown";
   const levelNames = levels.filter((l) => teacher.levels.includes(l.id)).map((l) => l.level).join(", ") || "None";
   return (
     <group position={[0, 0, 0]} rotation={[0, 0, 0]}>
@@ -617,13 +617,13 @@ export default function TeacherList() {
       try {
         setLoading(true);
         const [levelsResponse, subjectsResponse, teachersResponse] = await Promise.all([
-          api.get("api/levels/list/"), // Fetch levels from LevelListView
-          api.get("api/subjects/list/"), // Fetch subjects
+          api.get("api/levels/list/"),
+          api.get("api/subjects/list/"),
           api.get("api/teachers/list/", {
             params: {
-              level: selectedLevel !== "All" ? [selectedLevel] : null, // Pass level as an array for getlist
+              level: selectedLevel !== "All" ? [selectedLevel] : null,
             },
-          }), // Fetch teachers with level filter
+          }),
         ]);
         setLevels(levelsResponse.data);
         setSubjects(subjectsResponse.data);
@@ -798,7 +798,7 @@ export default function TeacherList() {
             </thead>
             <tbody>
               {filteredTeachers.map((teacher) => {
-                const subjectName = subjects.find((s) => s.id === teacher.subject)?.nom || "Unknown";
+                const subjectName = teacher.subject?.nom || subjects.find((s) => s.id === teacher.subject)?.nom || "Unknown";
                 const levelNames = levels.filter((l) => teacher.levels.includes(l.id)).map((l) => l.level).join(", ") || "None";
                 return (
                   <tr key={teacher.id} className="border-b border-gray-800 hover:bg-gray-800">

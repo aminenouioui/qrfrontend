@@ -50,10 +50,10 @@ export default function ClassSchedule() {
     const fetchData = async () => {
       try {
         const [subjectsRes, teachersRes, levelsRes, classroomsRes] = await Promise.all([
-          api.get("/api/subjects/list/"), // Matches teacher_qr
-          api.get("/api/teachers/list/"), // Matches teacher_qr
-          api.get("/api/levels/list/"),   // Matches student_qr
-          api.get("/api/classes/list/"),  // Matches teacher_qr
+          api.get("/api/subjects/list/"),
+          api.get("/api/teachers/list/"),
+          api.get("/api/levels/list/"),
+          api.get("/api/classes/list/"),
         ]);
         setSubjects(subjectsRes.data);
         setTeachers(teachersRes.data);
@@ -74,8 +74,8 @@ export default function ClassSchedule() {
 
   const fetchSchedulesByLevel = async (levelId) => {
     try {
-      const response = await api.get(`/api/schedules/level/${levelId}/`); // Matches student_qr
-      console.log("Fetched schedules:", response.data); // Debug log
+      const response = await api.get(`/api/schedules/level/${levelId}/`);
+      console.log("Fetched schedules:", response.data);
       setSchedules(response.data);
       setError(null);
     } catch (error) {
@@ -117,6 +117,11 @@ export default function ClassSchedule() {
 
   const getClassForSlot = (day, time) => {
     return schedules.find((c) => c.day === day && normalizeTime(c.start_time) === time);
+  };
+
+  // New function to get schedules that don't fit in the predefined time slots
+  const getOtherSchedules = () => {
+    return schedules.filter((schedule) => !timeSlots.includes(normalizeTime(schedule.start_time)));
   };
 
   const handleInputChange = (e) => {
@@ -174,11 +179,9 @@ export default function ClassSchedule() {
       return;
     }
     try {
-      const response = await api.post("/api/schedules/create/", formData); // Matches student_qr
-      console.log("New schedule added:", response.data); // Debug log
-      // Optimistically update schedules state
+      const response = await api.post("/api/schedules/create/", formData);
+      console.log("New schedule added:", response.data);
       setSchedules((prev) => [...prev, response.data]);
-      // Refresh to ensure consistency
       await fetchSchedulesByLevel(selectedLevel.id);
       setIsAddingClass(false);
       resetForm();
@@ -195,7 +198,7 @@ export default function ClassSchedule() {
 
   const handleUpdateClass = async () => {
     try {
-      const response = await api.put(`/api/schedules/${formData.id}/update/`, formData); // Matches student_qr
+      const response = await api.put(`/api/schedules/${formData.id}/update/`, formData);
       setSchedules((prev) => prev.map((c) => (c.id === formData.id ? response.data : c)));
       setIsEditingClass(false);
       setSelectedClass(response.data);
@@ -212,7 +215,7 @@ export default function ClassSchedule() {
 
   const handleDeleteClass = async () => {
     try {
-      await api.delete(`/api/schedules/${selectedClass.id}/delete/`); // Matches student_qr
+      await api.delete(`/api/schedules/${selectedClass.id}/delete/`);
       setSchedules((prev) => prev.filter((c) => c.id !== selectedClass.id));
       setShowDeleteConfirm(false);
       setSelectedClass(null);
@@ -393,6 +396,51 @@ export default function ClassSchedule() {
                   ))}
                 </div>
               </div>
+
+              {/* New Section for Other Schedules */}
+              {schedules.length > 0 && (
+                <div className="p-4 border-t border-gray-800">
+                  <h3 className="text-lg font-medium mb-4">Other Schedules</h3>
+                  {getOtherSchedules().length > 0 ? (
+                    <div className="space-y-4">
+                      {getOtherSchedules().map((classItem) => (
+                        <div
+                          key={classItem.id}
+                          className="bg-blue-600/20 p-4 rounded-lg flex justify-between items-center"
+                        >
+                          <div>
+                            <div className="font-medium">
+                              {getSubject(classItem.subject).nom}
+                            </div>
+                            <div className="text-sm text-gray-300">
+                              {classItem.day} | {classItem.start_time} - {classItem.end_time}
+                            </div>
+                            <div className="text-sm text-blue-300">
+                              {getClasse(classItem.classe).name} | {getLevel(classItem.level).level}
+                            </div>
+                          </div>
+                          <div className="flex gap-2">
+                            <button
+                              className="text-blue-400 hover:text-blue-600"
+                              onClick={() => handleEditClass(classItem)}
+                            >
+                              <Edit className="h-4 w-4" />
+                            </button>
+                            <button
+                              className="text-red-400 hover:text-red-600"
+                              onClick={() => handleDeleteClick(classItem)}
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="text-gray-400">No schedules outside the predefined time slots.</p>
+                  )}
+                </div>
+              )}
 
               {(isAddingClass || isEditingClass) && (
                 <div className="p-4 border-t border-gray-800 bg-[#172033]">

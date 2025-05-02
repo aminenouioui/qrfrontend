@@ -17,7 +17,7 @@ function AddStudentModal({ isOpen, onClose, onAddStudent, levels }) {
     numero: "",
     photo: null,
     admission_s: "att",
-    // Add parent fields
+    parent_id: "",
     parent_nom: "",
     parent_prenom: "",
     parent_adresse: "",
@@ -27,10 +27,31 @@ function AddStudentModal({ isOpen, onClose, onAddStudent, levels }) {
     parent_is_emergency_contact: true,
     parent_profession: "",
   });
+  const [parents, setParents] = useState([]);
+  const [useExistingParent, setUseExistingParent] = useState(true);
   const [previewUrl, setPreviewUrl] = useState("/media/placeholder.svg");
   const fileInputRef = useRef(null);
   const [error, setError] = useState(null);
 
+  // Fetch parents when modal opens
+  useEffect(() => {
+    if (isOpen) {
+      const fetchParents = async () => {
+        try {
+          const response = await api.get("/api/parents/list/");
+          setParents(Array.isArray(response.data) ? response.data : []);
+          if (response.data.length > 0) {
+            setNewStudent((prev) => ({ ...prev, parent_id: response.data[0].id }));
+          }
+        } catch (err) {
+          setError("Failed to load parents.");
+        }
+      };
+      fetchParents();
+    }
+  }, [isOpen]);
+
+  // Reset form when modal opens
   useEffect(() => {
     if (isOpen && levels.length > 0) {
       setNewStudent({
@@ -43,6 +64,7 @@ function AddStudentModal({ isOpen, onClose, onAddStudent, levels }) {
         numero: "",
         photo: null,
         admission_s: "att",
+        parent_id: parents[0]?.id || "",
         parent_nom: "",
         parent_prenom: "",
         parent_adresse: "",
@@ -54,8 +76,9 @@ function AddStudentModal({ isOpen, onClose, onAddStudent, levels }) {
       });
       setPreviewUrl("/media/placeholder.svg");
       setError(null);
+      setUseExistingParent(true);
     }
-  }, [isOpen, levels]);
+  }, [isOpen, levels, parents]);
 
   const handleInputChange = (e) => {
     const { name, value, type, checked } = e.target;
@@ -89,23 +112,27 @@ function AddStudentModal({ isOpen, onClose, onAddStudent, levels }) {
       formData.append("photo", newStudent.photo);
     }
     // Parent fields
-    formData.append("parent_nom", newStudent.parent_nom);
-    formData.append("parent_prenom", newStudent.parent_prenom);
-    formData.append("parent_adresse", newStudent.parent_adresse);
-    formData.append("parent_mail", newStudent.parent_mail);
-    formData.append("parent_numero", newStudent.parent_numero);
-    formData.append("parent_relationship", newStudent.parent_relationship);
-    formData.append("parent_is_emergency_contact", newStudent.parent_is_emergency_contact);
-    formData.append("parent_profession", newStudent.parent_profession);
+    if (useExistingParent) {
+      formData.append("parent_id", newStudent.parent_id);
+    } else {
+      formData.append("parent_nom", newStudent.parent_nom);
+      formData.append("parent_prenom", newStudent.parent_prenom);
+      formData.append("parent_adresse", newStudent.parent_adresse);
+      formData.append("parent_mail", newStudent.parent_mail);
+      formData.append("parent_numero", newStudent.parent_numero);
+      formData.append("parent_relationship", newStudent.parent_relationship);
+      formData.append("parent_is_emergency_contact", newStudent.parent_is_emergency_contact);
+      formData.append("parent_profession", newStudent.parent_profession);
+    }
 
     try {
-      const response = await api.post("api/students/add/", formData, {
+      const response = await api.post("/api/register-student-parent/", formData, {
         headers: { "Content-Type": "multipart/form-data" },
       });
-      onAddStudent(response.data);
+      onAddStudent(response.data.student);
       onClose();
     } catch (err) {
-      setError(err.response?.data?.detail || "Failed to add student.");
+      setError(err.response?.data?.error || "Failed to add student.");
     }
   };
 
@@ -195,6 +222,7 @@ function AddStudentModal({ isOpen, onClose, onAddStudent, levels }) {
                 name="date_naissance"
                 value={newStudent.date_naissance}
                 onChange={handleInputChange}
+                required
                 className="w-full bg-[#273549] border border-gray-700 rounded-lg px-3 py-2 text-white"
               />
             </div>
@@ -251,8 +279,10 @@ function AddStudentModal({ isOpen, onClose, onAddStudent, levels }) {
                 name="level"
                 value={newStudent.level}
                 onChange={handleInputChange}
+                required
                 className="w-full bg-[#273549] border border-gray-700 rounded-lg px-3 py-2 text-white"
               >
+                <option value="">Select a level</option>
                 {levels.map((level) => (
                   <option key={level.id} value={level.id}>
                     {level.level}
@@ -277,128 +307,181 @@ function AddStudentModal({ isOpen, onClose, onAddStudent, levels }) {
               </select>
             </div>
 
-            {/* Parent Fields */}
+            {/* Parent Selection */}
             <h3 className="text-lg font-semibold text-gray-300 mb-4">Parent Information</h3>
-            <div className="grid grid-cols-2 gap-4 mb-4">
-              <div>
-                <label htmlFor="parent_prenom" className="block text-sm font-medium text-gray-300 mb-1">
-                  Parent Prénom
+            <div className="mb-4">
+              <label className="block text-sm font-medium text-gray-300 mb-1">
+                Parent Selection
+              </label>
+              <div className="flex items-center gap-4">
+                <label className="flex items-center">
+                  <input
+                    type="radio"
+                    name="parent_selection"
+                    checked={useExistingParent}
+                    onChange={() => setUseExistingParent(true)}
+                    className="mr-2"
+                  />
+                  Use Existing Parent
                 </label>
-                <input
-                  type="text"
-                  id="parent_prenom"
-                  name="parent_prenom"
-                  value={newStudent.parent_prenom}
-                  onChange={handleInputChange}
-                  required
-                  className="w-full bg-[#273549] border border-gray-700 rounded-lg px-3 py-2 text-white"
-                  placeholder="Parent First Name"
-                />
-              </div>
-              <div>
-                <label htmlFor="parent_nom" className="block text-sm font-medium text-gray-300 mb-1">
-                  Parent Nom
+                <label className="flex items-center">
+                  <input
+                    type="radio"
+                    name="parent_selection"
+                    checked={!useExistingParent}
+                    onChange={() => setUseExistingParent(false)}
+                    className="mr-2"
+                  />
+                  Add New Parent
                 </label>
-                <input
-                  type="text"
-                  id="parent_nom"
-                  name="parent_nom"
-                  value={newStudent.parent_nom}
-                  onChange={handleInputChange}
-                  required
-                  className="w-full bg-[#273549] border border-gray-700 rounded-lg px-3 py-2 text-white"
-                  placeholder="Parent Last Name"
-                />
               </div>
             </div>
-            <div className="mb-4">
-              <label htmlFor="parent_adresse" className="block text-sm font-medium text-gray-300 mb-1">
-                Parent Adresse
-              </label>
-              <input
-                type="text"
-                id="parent_adresse"
-                name="parent_adresse"
-                value={newStudent.parent_adresse}
-                onChange={handleInputChange}
-                className="w-full bg-[#273549] border border-gray-700 rounded-lg px-3 py-2 text-white"
-                placeholder="Parent Address"
-              />
-            </div>
-            <div className="mb-4">
-              <label htmlFor="parent_mail" className="block text-sm font-medium text-gray-300 mb-1">
-                Parent Email
-              </label>
-              <input
-                type="email"
-                id="parent_mail"
-                name="parent_mail"
-                value={newStudent.parent_mail}
-                onChange={handleInputChange}
-                required
-                className="w-full bg-[#273549] border border-gray-700 rounded-lg px-3 py-2 text-white"
-                placeholder="Parent Email"
-              />
-            </div>
-            <div className="mb-4">
-              <label htmlFor="parent_numero" className="block text-sm font-medium text-gray-300 mb-1">
-                Parent Numéro
-              </label>
-              <input
-                type="text"
-                id="parent_numero"
-                name="parent_numero"
-                value={newStudent.parent_numero}
-                onChange={handleInputChange}
-                required
-                className="w-full bg-[#273549] border border-gray-700 rounded-lg px-3 py-2 text-white"
-                placeholder="Parent Phone Number"
-              />
-            </div>
-            <div className="mb-4">
-              <label htmlFor="parent_relationship" className="block text-sm font-medium text-gray-300 mb-1">
-                Parent Relationship
-              </label>
-              <select
-                id="parent_relationship"
-                name="parent_relationship"
-                value={newStudent.parent_relationship}
-                onChange={handleInputChange}
-                className="w-full bg-[#273549] border border-gray-700 rounded-lg px-3 py-2 text-white"
-              >
-                <option value="father">Father</option>
-                <option value="mother">Mother</option>
-                <option value="guardian">Guardian</option>
-                <option value="other">Other</option>
-              </select>
-            </div>
-            <div className="mb-4 flex items-center">
-              <input
-                type="checkbox"
-                id="parent_is_emergency_contact"
-                name="parent_is_emergency_contact"
-                checked={newStudent.parent_is_emergency_contact}
-                onChange={handleInputChange}
-                className="h-4 w-4 text-blue-600 border-gray-700 rounded bg-[#273549]"
-              />
-              <label htmlFor="parent_is_emergency_contact" className="ml-2 text-sm text-gray-300">
-                Emergency Contact
-              </label>
-            </div>
-            <div className="mb-6">
-              <label htmlFor="parent_profession" className="block text-sm font-medium text-gray-300 mb-1">
-                Parent Profession
-              </label>
-              <input
-                type="text"
-                id="parent_profession"
-                name="parent_profession"
-                value={newStudent.parent_profession}
-                onChange={handleInputChange}
-                className="w-full bg-[#273549] border border-gray-700 rounded-lg px-3 py-2 text-white"
-                placeholder="Parent Profession"
-              />
-            </div>
+
+            {useExistingParent ? (
+              <div className="mb-4">
+                <label htmlFor="parent_id" className="block text-sm font-medium text-gray-300 mb-1">
+                  Select Parent
+                </label>
+                <select
+                  id="parent_id"
+                  name="parent_id"
+                  value={newStudent.parent_id}
+                  onChange={handleInputChange}
+                  required={useExistingParent}
+                  className="w-full bg-[#273549] border border-gray-700 rounded-lg px-3 py-2 text-white"
+                >
+                  <option value="">Select a parent</option>
+                  {parents.map((parent) => (
+                    <option key={parent.id} value={parent.id}>
+                      {parent.prenom} {parent.nom} ({parent.mail})
+                    </option>
+                  ))}
+                </select>
+              </div>
+            ) : (
+              <>
+                <div className="grid grid-cols-2 gap-4 mb-4">
+                  <div>
+                    <label htmlFor="parent_prenom" className="block text-sm font-medium text-gray-300 mb-1">
+                      Parent Prénom
+                    </label>
+                    <input
+                      type="text"
+                      id="parent_prenom"
+                      name="parent_prenom"
+                      value={newStudent.parent_prenom}
+                      onChange={handleInputChange}
+                      required={!useExistingParent}
+                      className="w-full bg-[#273549] border border-gray-700 rounded-lg px-3 py-2 text-white"
+                      placeholder="Parent First Name"
+                    />
+                  </div>
+                  <div>
+                    <label htmlFor="parent_nom" className="block text-sm font-medium text-gray-300 mb-1">
+                      Parent Nom
+                    </label>
+                    <input
+                      type="text"
+                      id="parent_nom"
+                      name="parent_nom"
+                      value={newStudent.parent_nom}
+                      onChange={handleInputChange}
+                      required={!useExistingParent}
+                      className="w-full bg-[#273549] border border-gray-700 rounded-lg px-3 py-2 text-white"
+                      placeholder="Parent Last Name"
+                    />
+                  </div>
+                </div>
+                <div className="mb-4">
+                  <label htmlFor="parent_adresse" className="block text-sm font-medium text-gray-300 mb-1">
+                    Parent Adresse
+                  </label>
+                  <input
+                    type="text"
+                    id="parent_adresse"
+                    name="parent_adresse"
+                    value={newStudent.parent_adresse}
+                    onChange={handleInputChange}
+                    className="w-full bg-[#273549] border border-gray-700 rounded-lg px-3 py-2 text-white"
+                    placeholder="Parent Address"
+                  />
+                </div>
+                <div className="mb-4">
+                  <label htmlFor="parent_mail" className="block text-sm font-medium text-gray-300 mb-1">
+                    Parent Email
+                  </label>
+                  <input
+                    type="email"
+                    id="parent_mail"
+                    name="parent_mail"
+                    value={newStudent.parent_mail}
+                    onChange={handleInputChange}
+                    required={!useExistingParent}
+                    className="w-full bg-[#273549] border border-gray-700 rounded-lg px-3 py-2 text-white"
+                    placeholder="Parent Email"
+                  />
+                </div>
+                <div className="mb-4">
+                  <label htmlFor="parent_numero" className="block text-sm font-medium text-gray-300 mb-1">
+                    Parent Numéro
+                  </label>
+                  <input
+                    type="text"
+                    id="parent_numero"
+                    name="parent_numero"
+                    value={newStudent.parent_numero}
+                    onChange={handleInputChange}
+                    required={!useExistingParent}
+                    className="w-full bg-[#273549] border border-gray-700 rounded-lg px-3 py-2 text-white"
+                    placeholder="Parent Phone Number"
+                  />
+                </div>
+                <div className="mb-4">
+                  <label htmlFor="parent_relationship" className="block text-sm font-medium text-gray-300 mb-1">
+                    Parent Relationship
+                  </label>
+                  <select
+                    id="parent_relationship"
+                    name="parent_relationship"
+                    value={newStudent.parent_relationship}
+                    onChange={handleInputChange}
+                    className="w-full bg-[#273549] border border-gray-700 rounded-lg px-3 py-2 text-white"
+                  >
+                    <option value="father">Father</option>
+                    <option value="mother">Mother</option>
+                    <option value="guardian">Guardian</option>
+                    <option value="other">Other</option>
+                  </select>
+                </div>
+                <div className="mb-4 flex items-center">
+                  <input
+                    type="checkbox"
+                    id="parent_is_emergency_contact"
+                    name="parent_is_emergency_contact"
+                    checked={newStudent.parent_is_emergency_contact}
+                    onChange={handleInputChange}
+                    className="h-4 w-4 text-blue-600 border-gray-700 rounded bg-[#273549]"
+                  />
+                  <label htmlFor="parent_is_emergency_contact" className="ml-2 text-sm text-gray-300">
+                    Emergency Contact
+                  </label>
+                </div>
+                <div className="mb-6">
+                  <label htmlFor="parent_profession" className="block text-sm font-medium text-gray-300 mb-1">
+                    Parent Profession
+                  </label>
+                  <input
+                    type="text"
+                    id="parent_profession"
+                    name="parent_profession"
+                    value={newStudent.parent_profession}
+                    onChange={handleInputChange}
+                    className="w-full bg-[#273549] border border-gray-700 rounded-lg px-3 py-2 text-white"
+                    placeholder="Parent Profession"
+                  />
+                </div>
+              </>
+            )}
 
             {/* Form Actions */}
             <div className="flex justify-end gap-3 mt-4">

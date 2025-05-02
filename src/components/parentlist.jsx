@@ -1,9 +1,11 @@
-import { useState, useRef, useEffect } from "react";
+import { useState, useEffect } from "react";
 import { Search, Plus, Filter, ChevronLeft, ChevronRight, Download, Trash2, Edit, Eye, X } from "lucide-react";
 import { Canvas } from "@react-three/fiber";
 import { OrbitControls, PerspectiveCamera, Environment, Html } from "@react-three/drei";
 import { useNavigate } from "react-router-dom";
-import api from "./api";// Add Parent Modal Component
+import api from "./api";
+
+// Add Parent Modal Component
 function AddParentModal({ isOpen, onClose, onAddParent }) {
   const [newParent, setNewParent] = useState({
     nom: "",
@@ -16,6 +18,7 @@ function AddParentModal({ isOpen, onClose, onAddParent }) {
     profession: "",
   });
   const [error, setError] = useState(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
     if (isOpen) {
@@ -35,14 +38,17 @@ function AddParentModal({ isOpen, onClose, onAddParent }) {
 
   const handleInputChange = (e) => {
     const { name, value, type, checked } = e.target;
-    setNewParent({
-      ...newParent,
+    setNewParent((prev) => ({
+      ...prev,
       [name]: type === "checkbox" ? checked : value,
-    });
+    }));
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (isSubmitting) return;
+    setIsSubmitting(true);
+
     const formData = new FormData();
     formData.append("nom", newParent.nom);
     formData.append("prenom", newParent.prenom);
@@ -54,13 +60,19 @@ function AddParentModal({ isOpen, onClose, onAddParent }) {
     formData.append("profession", newParent.profession);
 
     try {
-      const response = await api.post("/parent/api/parents/add/", formData, {
+      const response = await api.post("/api/parents/add/", formData, {
         headers: { "Content-Type": "multipart/form-data" },
       });
       onAddParent(response.data);
       onClose();
     } catch (err) {
-      setError(err.response?.data?.detail || "Failed to add parent.");
+      const errorMessage =
+        err.response?.data?.detail ||
+        Object.values(err.response?.data || {}).join(", ") ||
+        "Failed to add parent.";
+      setError(errorMessage);
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -208,9 +220,12 @@ function AddParentModal({ isOpen, onClose, onAddParent }) {
               </button>
               <button
                 type="submit"
-                className="px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded-lg text-white"
+                disabled={isSubmitting}
+                className={`px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded-lg text-white ${
+                  isSubmitting ? "opacity-50 cursor-not-allowed" : ""
+                }`}
               >
-                Add Parent
+                {isSubmitting ? "Adding..." : "Add Parent"}
               </button>
             </div>
           </form>
@@ -229,10 +244,11 @@ function EditParentModal({ isOpen, onClose, onEditParent, parent }) {
     mail: parent.mail || "",
     numero: parent.numero || "",
     relationship: parent.relationship || "guardian",
-    is_emergency_contact: parent.is_emergency_contact || true,
+    is_emergency_contact: parent.is_emergency_contact ?? true,
     profession: parent.profession || "",
   });
   const [error, setError] = useState(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
     if (isOpen) {
@@ -243,7 +259,7 @@ function EditParentModal({ isOpen, onClose, onEditParent, parent }) {
         mail: parent.mail || "",
         numero: parent.numero || "",
         relationship: parent.relationship || "guardian",
-        is_emergency_contact: parent.is_emergency_contact || true,
+        is_emergency_contact: parent.is_emergency_contact ?? true,
         profession: parent.profession || "",
       });
       setError(null);
@@ -252,14 +268,17 @@ function EditParentModal({ isOpen, onClose, onEditParent, parent }) {
 
   const handleInputChange = (e) => {
     const { name, value, type, checked } = e.target;
-    setEditedParent({
-      ...editedParent,
+    setEditedParent((prev) => ({
+      ...prev,
       [name]: type === "checkbox" ? checked : value,
-    });
+    }));
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (isSubmitting) return;
+    setIsSubmitting(true);
+
     const formData = new FormData();
     formData.append("nom", editedParent.nom);
     formData.append("prenom", editedParent.prenom);
@@ -271,13 +290,19 @@ function EditParentModal({ isOpen, onClose, onEditParent, parent }) {
     formData.append("profession", editedParent.profession);
 
     try {
-      const response = await api.put(`/parent/api/parents/edit/${parent.id}/`, formData, {
+      const response = await api.put(`/api/parents/edit/${parent.id}/`, formData, {
         headers: { "Content-Type": "multipart/form-data" },
       });
       onEditParent(response.data);
       onClose();
     } catch (err) {
-      setError(err.response?.data?.detail || "Failed to edit parent.");
+      const errorMessage =
+        err.response?.data?.detail ||
+        Object.values(err.response?.data || {}).join(", ") ||
+        "Failed to edit parent.";
+      setError(errorMessage);
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -425,9 +450,12 @@ function EditParentModal({ isOpen, onClose, onEditParent, parent }) {
               </button>
               <button
                 type="submit"
-                className="px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded-lg text-white"
+                disabled={isSubmitting}
+                className={`px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded-lg text-white ${
+                  isSubmitting ? "opacity-50 cursor-not-allowed" : ""
+                }`}
               >
-                Save Changes
+                {isSubmitting ? "Saving..." : "Save Changes"}
               </button>
             </div>
           </form>
@@ -443,7 +471,14 @@ function ParentCard({ parent, index, totalParents, onDelete, onEdit }) {
     <group position={[0, 0, 0]} rotation={[0, 0, 0]}>
       <mesh position={[0, 0, 0]} castShadow receiveShadow>
         <boxGeometry args={[3.8, 2.2, 0.1]} />
-        <meshPhysicalMaterial color="#1e293b" metalness={0.9} roughness={0.1} transmission={0.5} thickness={0.5} envMapIntensity={1} />
+        <meshPhysicalMaterial
+          color="#1e293b"
+          metalness={0.9}
+          roughness={0.1}
+          transmission={0.5}
+          thickness={0.5}
+          envMapIntensity={1}
+        />
       </mesh>
       <mesh position={[0, 0, 0.06]} castShadow>
         <planeGeometry args={[3.8, 2.2]} />
@@ -451,7 +486,13 @@ function ParentCard({ parent, index, totalParents, onDelete, onEdit }) {
       </mesh>
       <mesh position={[-1.4, 0, 0.07]} castShadow>
         <planeGeometry args={[1, 1.5]} />
-        <meshPhongMaterial color="#3b82f6" emissive="#1d4ed8" emissiveIntensity={0.2} transparent opacity={0.1} />
+        <meshPhongMaterial
+          color="#3b82f6"
+          emissive="#1d4ed8"
+          emissiveIntensity={0.2}
+          transparent
+          opacity={0.1}
+        />
       </mesh>
       <Html position={[-1.4, 0, 0.08]} transform>
         <div className="w-[100px] h-[150px] rounded-lg overflow-hidden ring-2 ring-blue-500/30 flex items-center justify-center bg-gray-700">
@@ -477,10 +518,22 @@ function ParentCard({ parent, index, totalParents, onDelete, onEdit }) {
               </span>
             </div>
             <div className="flex gap-3 mt-4">
-              <button onClick={(e) => { e.stopPropagation(); onEdit(parent); }} className="p-2 bg-green-500/20 border border-green-500/30 rounded-full hover:bg-green-500/30 transition-colors">
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onEdit(parent);
+                }}
+                className="p-2 bg-green-500/20 border border-green-500/30 rounded-full hover:bg-green-500/30 transition-colors"
+              >
                 <Edit size={16} />
               </button>
-              <button onClick={(e) => { e.stopPropagation(); onDelete(parent.id); }} className="p-2 bg-red-500/20 border border-red-500/30 rounded-full hover:bg-red-500/30 transition-colors">
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onDelete(parent.id);
+                }}
+                className="p-2 bg-red-500/20 border border-red-500/30 rounded-full hover:bg-red-500/30 transition-colors"
+              >
                 <Trash2 size={16} />
               </button>
             </div>
@@ -488,7 +541,9 @@ function ParentCard({ parent, index, totalParents, onDelete, onEdit }) {
         </div>
       </Html>
       <Html position={[1.7, -0.9, 0.1]}>
-        <div className="px-3 py-1 bg-gray-900/50 border border-gray-700/30 rounded-full backdrop-blur-sm text-gray-400 text-xs">{index + 1}/{totalParents}</div>
+        <div className="px-3 py-1 bg-gray-900/50 border border-gray-700/30 rounded-full backdrop-blur-sm text-gray-400 text-xs">
+          {index + 1}/{totalParents}
+        </div>
       </Html>
     </group>
   );
@@ -513,7 +568,13 @@ function ParentScene({ parents, currentPage, parentsPerPage, onDelete, onEdit })
           onEdit={onEdit}
         />
       ))}
-      <OrbitControls enableZoom={false} enablePan={false} minPolarAngle={Math.PI / 2.5} maxPolarAngle={Math.PI / 2.5} rotateSpeed={0.5} />
+      <OrbitControls
+        enableZoom={false}
+        enablePan={false}
+        minPolarAngle={Math.PI / 2.5}
+        maxPolarAngle={Math.PI / 2.5}
+        rotateSpeed={0.5}
+      />
     </Canvas>
   );
 }
@@ -547,7 +608,7 @@ export default function ParentListPage() {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const response = await api.get("api/parents/list/");
+        const response = await api.get("/api/parents/list/");
         setParents(Array.isArray(response.data) ? response.data : []);
         setLoading(false);
       } catch (err) {
@@ -564,22 +625,31 @@ export default function ParentListPage() {
   };
 
   const handleEditParent = (updatedParent) => {
-    setParents((prev) => prev.map((p) => (p.id === updatedParent.id ? updatedParent : p)));
+    setParents((prev) =>
+      prev.map((p) => (p.id === updatedParent.id ? updatedParent : p))
+    );
     setIsEditModalOpen(false);
     setParentToEdit(null);
   };
 
   const handleDelete = async (parentId) => {
+    if (!window.confirm("Are you sure you want to delete this parent?")) {
+      return;
+    }
+
     try {
-      await api.delete(`/parent/api/parents/delete/${parentId}/`);
+      await api.delete(`/api/parents/delete/${parentId}/`);
       setParents((prev) => prev.filter((p) => p.id !== parentId));
+      setError(null);
     } catch (err) {
-      setError(err.response?.data?.detail || "Failed to delete parent.");
+      const errorMessage =
+        err.response?.data?.detail || "Failed to delete parent. Please try again.";
+      setError(errorMessage);
     }
   };
 
   const openEditModal = (parent) => {
-    setParentToEdit({ ...parent });
+    setParentToEdit(parent);
     setIsEditModalOpen(true);
   };
 
@@ -618,7 +688,7 @@ export default function ParentListPage() {
   ];
 
   const handleViewDetails = (parentId) => {
-    navigate(`/admin/parentdetail?id=${parentId}`);
+    navigate(`/admin/parents/${parentId}`);
   };
 
   if (loading) return <div className="min-h-screen bg-[#111827] text-white p-6">Loading...</div>;
@@ -718,8 +788,8 @@ export default function ParentListPage() {
         <div className="flex justify-between items-center">
           <div className="text-sm text-gray-400">
             Showing {currentParents.length > 0 ? (currentPage - 1) * parentsPerPage + 1 : 0} to{" "}
-            {Math.min(currentPage * parentsPerPage, filteredParents.length)} of {filteredParents.length}{" "}
-            parents
+            {Math.min(currentPage * parentsPerPage, filteredParents.length)} of{" "}
+            {filteredParents.length} parents
           </div>
           <div className="flex gap-2">
             <button

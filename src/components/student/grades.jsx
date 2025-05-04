@@ -93,6 +93,7 @@ export default function Grades() {
 
   const getSubject = (subjectId) => subjects.find((s) => s.id === subjectId) || { id: "", nom: "Unknown" };
   const getLevelName = (levelId) => levels.find((l) => l.id === levelId)?.level || "Unknown";
+  const getLevelIdByName = (levelName) => levels.find((l) => l.level === levelName)?.id || null;
 
   const getGradeColor = (grade) => {
     const gradeNum = Number.parseFloat(grade);
@@ -172,13 +173,18 @@ export default function Grades() {
 
   const handleSaveNewGrade = async () => {
     if (!selectedStudent) return;
+    const levelId = getLevelIdByName(selectedStudent.level);
+    if (!levelId) {
+      setError("Invalid level selected. Please ensure the student's level is valid.");
+      return;
+    }
     try {
       const response = await api.post("/api/grades/add/", {
         student: formData.student,
         subject: formData.subject,
         grade: Number.parseFloat(formData.grade),
         grade_type: formData.grade_type,
-        level: selectedStudent.level,
+        level: levelId, // Use the numeric ID
         date_g: formData.date_g,
       });
       const newGrade = response.data;
@@ -199,13 +205,18 @@ export default function Grades() {
 
   const handleUpdateGrade = async () => {
     if (!selectedStudent || !selectedGrade) return;
+    const levelId = getLevelIdByName(selectedStudent.level);
+    if (!levelId) {
+      setError("Invalid level selected. Please ensure the student's level is valid.");
+      return;
+    }
     try {
       const response = await api.put(`/api/grades/edit/${formData.id}/`, {
         student: formData.student,
         subject: formData.subject,
         grade: Number.parseFloat(formData.grade),
         grade_type: formData.grade_type,
-        level: selectedStudent.level,
+        level: levelId, // Use the numeric ID
         date_g: formData.date_g,
       });
       const updatedGrade = response.data;

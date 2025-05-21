@@ -161,10 +161,13 @@ export default function TeacherAttendanceTracking() {
         const subjectId = typeof record.subject === 'object' ? record.subject.id : record.subject;
         if (normalizedDate && subjectId) {
           const dateKey = `${normalizedDate}-${subjectId}`;
-          const status = record.status == 'late' ? 'retard' : 
-                        record.status == 'en_attente' ? 'att' : 
-                        record.status;
-          attendanceMap[dateKey] = status;
+          const status = record.status === 'late' ? 'retard' :
+                        record.status === 'en_attente' ? 'att' :
+                        ['present', 'absent'].includes(record.status) ? record.status :
+                        null;
+          if (status) {
+            attendanceMap[dateKey] = status;
+          }
         }
       });
       setAttendanceData((prev) => ({
@@ -174,13 +177,23 @@ export default function TeacherAttendanceTracking() {
       setError(null);
     } catch (error) {
       console.error("Fetch attendance error:", error.response?.data || error);
-      let errorMessage = `Failed to load attendance: ${error.response?.data?.detail || error.message}`;
+      let errorMessage;
+      if (error.response?.status === 500 && typeof error.response.data === 'string') {
+        // Extract error message from HTML if possible
+        const match = error.response.data.match(/<pre class="exception_value">(.*?)<\/pre>/s);
+        errorMessage = match ? match[1].split('\n')[0] : "Server error occurred.";
+      } else {
+        errorMessage = error.response?.data
+          ? Object.values(error.response.data).flat().join(", ") || "Failed to load attendance"
+          : error.message;
+      }
       if (error.response?.status === 404) {
         errorMessage = "Attendance endpoint not found. Please contact the administrator.";
       } else if (error.response?.status === 401) {
         errorMessage = "Authentication failed. Please log in again.";
       }
-      setError(errorMessage);
+      setError(`Failed to load attendance: ${errorMessage}`);
+      console.log("Raw error response:", error.response?.data);
     } finally {
       setLoading((prev) => ({ ...prev, attendance: false }));
     }
@@ -299,8 +312,9 @@ export default function TeacherAttendanceTracking() {
 
   // Update attendance status
   const updateAttendanceStatus = async (subjectId, date, status) => {
-    if (isUpdating || !selectedTeacher || !subjectId || !date) {
-      console.log("Update aborted:", { isUpdating, selectedTeacher, subjectId, date });
+    if (isUpdating || !selectedTeacher || !subjectId || !date || !selectedSchedule) {
+      console.log("Update aborted:", { isUpdating, selectedTeacher, subjectId, date, selectedSchedule });
+      setError("Cannot update attendance: Missing required data.");
       return;
     }
 
@@ -315,19 +329,25 @@ export default function TeacherAttendanceTracking() {
     setError("Saving attendance status...");
 
     try {
-      console.log("Updating attendance:", { teacherId: selectedTeacher.id, subjectId, date, status });
+      console.log("Updating attendance:", { teacherId: selectedTeacher.id, subjectId, scheduleId: selectedSchedule.id, date, status });
 
       // Optimistically update UI
       setAttendanceData((prev) => {
-        const updatedData = { ...prev };
-        if (!updatedData[selectedTeacher.id]) updatedData[selectedTeacher.id] = {};
-        updatedData[selectedTeacher.id][dateKey] = status;
+        const updatedData = {
+          ...prev,
+          [selectedTeacher.id]: {
+            ...(prev[selectedTeacher.id] || {}),
+            [dateKey]: status,
+          },
+        };
+        console.log("Updated attendanceData:", updatedData);
         return updatedData;
       });
 
       const apiData = {
         teacher: selectedTeacher.id,
         subject: subjectId,
+        schedule: selectedSchedule.id,
         date: formatDateKey(date),
         status: statusMap[status] || status,
       };
@@ -357,19 +377,32 @@ export default function TeacherAttendanceTracking() {
       setTimeout(() => setError(null), 2000);
     } catch (error) {
       console.error("Update attendance error:", error.response?.data || error);
-      let errorMessage = error.response?.data
-        ? Object.values(error.response.data).flat().join(", ") || "Failed to update attendance"
-        : error.message;
+      let errorMessage;
+      if (error.response?.status === 500 && typeof error.response.data === 'string') {
+        // Extract error message from HTML if possible
+        const match = error.response.data.match(/<pre class="exception_value">(.*?)<\/pre>/s);
+        errorMessage = match ? match[1].split('\n')[0] : "Server error occurred.";
+      } else {
+        errorMessage = error.response?.data
+          ? Object.values(error.response.data).flat().join(", ") || "Failed to update attendance"
+          : error.message;
+      }
       if (error.response?.status === 404) {
         errorMessage = "Attendance endpoint not found. Please contact the administrator.";
+      } else if (error.response?.status === 400) {
+        errorMessage = `Validation error: ${errorMessage}`;
+      } else if (error.response?.status === 500) {
+        errorMessage = `Server error: ${errorMessage}`;
       }
       setError(`Failed to update attendance: ${errorMessage}`);
+      console.log("Raw error response:", error.response?.data);
       setAttendanceData((prev) => {
-        const updatedData = { ...prev };
-        if (updatedData[selectedTeacher.id] && updatedData[selectedTeacher.id][dateKey]) {
-          delete updatedData[selectedTeacher.id][dateKey];
-        }
-        return updatedData;
+        const updatedTeacherData = { ...(prev[selectedTeacher.id] || {}) };
+        delete updatedTeacherData[dateKey];
+        return {
+          ...prev,
+          [selectedTeacher.id]: updatedTeacherData,
+        };
       });
     } finally {
       setLoading((prev) => ({ ...prev, saving: false }));
@@ -378,14 +411,17 @@ export default function TeacherAttendanceTracking() {
   };
 
   // Debounced version of updateAttendanceStatus
-  const debouncedUpdateAttendance = useCallback(debounce(updateAttendanceStatus, 300), [
-    selectedTeacher,
-    isUpdating,
-  ]);
+  const debouncedUpdateAttendance = useCallback(
+    debounce(updateAttendanceStatus, 300),
+    [selectedTeacher, selectedSchedule, isUpdating]
+  );
 
   // Delete attendance record
   const deleteAttendance = async (subjectId, date) => {
-    if (!selectedTeacher || !subjectId || !date) return;
+    if (!selectedTeacher || !subjectId || !date) {
+      setError("Cannot delete attendance: Missing required data.");
+      return;
+    }
 
     setError("Deleting attendance record...");
     try {
@@ -402,12 +438,13 @@ export default function TeacherAttendanceTracking() {
       if (matchingRecord) {
         await api.delete(`/api/attendance-t/${matchingRecord.id}/delete/`);
         setAttendanceData((prev) => {
-          const updatedData = { ...prev };
+          const updatedTeacherData = { ...(prev[selectedTeacher.id] || {}) };
           const dateKey = `${formatDateKey(date)}-${subjectId}`;
-          if (updatedData[selectedTeacher.id] && updatedData[selectedTeacher.id][dateKey]) {
-            delete updatedData[selectedTeacher.id][dateKey];
-          }
-          return updatedData;
+          delete updatedTeacherData[dateKey];
+          return {
+            ...prev,
+            [selectedTeacher.id]: updatedTeacherData,
+          };
         });
 
         await fetchAttendance();
@@ -421,13 +458,20 @@ export default function TeacherAttendanceTracking() {
       }
     } catch (error) {
       console.error("Delete attendance error:", error.response?.data || error);
-      let errorMessage = error.response?.data
-        ? Object.values(error.response.data).flat().join(", ") || "Failed to delete attendance"
-        : error.message;
+      let errorMessage;
+      if (error.response?.status === 500 && typeof error.response.data === 'string') {
+        const match = error.response.data.match(/<pre class="exception_value">(.*?)<\/pre>/s);
+        errorMessage = match ? match[1].split('\n')[0] : "Server error occurred.";
+      } else {
+        errorMessage = error.response?.data
+          ? Object.values(error.response.data).flat().join(", ") || "Failed to delete attendance"
+          : error.message;
+      }
       if (error.response?.status === 404) {
         errorMessage = "Attendance endpoint not found. Please contact the administrator.";
       }
       setError(`Failed to delete attendance: ${errorMessage}`);
+      console.log("Raw error response:", error.response?.data);
       setConfirmDelete(null);
     }
   };
@@ -746,7 +790,7 @@ export default function TeacherAttendanceTracking() {
                             {schedules.length > 0 ? (
                               <div className="border border-gray-800 rounded-b-lg divide-y divide-gray-800">
                                 {schedules.map((sch) => {
-                                  const subjectId = typeof sch.subject === 'object' ? sch.subject.id : sch.subject;
+                                  const subjectId = sch.subject?.id || sch.subject;
                                   const status = getAttendanceStatus(
                                     selectedTeacher.id,
                                     subjectId,
@@ -831,7 +875,7 @@ export default function TeacherAttendanceTracking() {
                       <div className="flex items-center justify-between mb-4">
                         <div>
                           <div className="font-medium text-lg">
-                            {selectedSchedule.subject?.nom || getSubjectName(selectedSchedule.subject)}
+                            {selectedSchedule.subject?.nom || getSubjectName(selectedSchedule.subject?.id || selectedSchedule.subject)}
                           </div>
                           <div className="text-sm text-gray-400">
                             {getDayName(selectedDate.getDay())}, {formatDate(selectedDate)} •{" "}
@@ -847,7 +891,7 @@ export default function TeacherAttendanceTracking() {
                             className={`flex-1 py-3 rounded-lg flex items-center justify-center gap-2 ${
                               getAttendanceStatus(
                                 selectedTeacher.id,
-                                typeof selectedSchedule.subject === 'object' ? selectedSchedule.subject.id : selectedSchedule.subject,
+                                selectedSchedule.subject?.id || selectedSchedule.subject,
                                 selectedDate
                               ) === status
                                 ? `${
@@ -871,9 +915,9 @@ export default function TeacherAttendanceTracking() {
                             }`}
                             onClick={() =>
                               debouncedUpdateAttendance(
-                                typeof selectedSchedule.subject === 'object' ? selectedSchedule.subject.id : selectedSchedule.subject,
+                                selectedSchedule.subject?.id || selectedSchedule.subject,
                                 selectedDate,
-                                statusMap[status]
+                                status
                               )
                             }
                             disabled={new Date(selectedDate) > new Date() || loading.saving || isUpdating}

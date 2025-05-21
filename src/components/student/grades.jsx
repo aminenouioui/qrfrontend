@@ -49,6 +49,9 @@ export default function Grades() {
           api.get("/api/subjects/list/"),
           api.get("/api/levels/list/"),
         ]);
+        console.log("Students:", studentsResponse.data);
+        console.log("Subjects:", subjectsResponse.data);
+        console.log("Levels:", levelsResponse.data);
         setStudents(Array.isArray(studentsResponse.data) ? studentsResponse.data : []);
         setSubjects(Array.isArray(subjectsResponse.data) ? subjectsResponse.data : []);
         setLevels(Array.isArray(levelsResponse.data) ? levelsResponse.data : []);
@@ -66,6 +69,7 @@ export default function Grades() {
       const fetchGrades = async () => {
         try {
           const response = await api.get(`/api/grades/list/?student=${selectedStudent.id}`);
+          console.log("Grades response:", response.data);
           setGradesData((prev) => ({
             ...prev,
             [selectedStudent.id]: {
@@ -91,9 +95,14 @@ export default function Grades() {
       (selectedLevel === "" || student.level === Number(selectedLevel))
   );
 
-  const getSubject = (subjectId) => subjects.find((s) => s.id === subjectId) || { id: "", nom: "Unknown" };
+  const getSubject = (subject) => {
+    if (typeof subject === "object" && subject?.nom) {
+      return subject; // Handle nested subject object
+    }
+    return subjects.find((s) => s.id === subject) || { id: "", nom: "Unknown" };
+  };
+
   const getLevelName = (levelId) => levels.find((l) => l.id === levelId)?.level || "Unknown";
-  const getLevelIdByName = (levelName) => levels.find((l) => l.level === levelName)?.id || null;
 
   const getGradeColor = (grade) => {
     const gradeNum = Number.parseFloat(grade);
@@ -122,7 +131,7 @@ export default function Grades() {
 
   const calculateGPA = (studentGrades) => {
     if (!studentGrades || studentGrades.length === 0) return "0.0";
-    const totalPoints = studentGrades.reduce((sum, grade) => sum + (grade.grade / 20) * 4, 0);
+    const totalPoints = studentGrades.reduce((sum, grade) => sum + (Number.parseFloat(grade.grade) / 20) * 4, 0);
     return (totalPoints / studentGrades.length).toFixed(1);
   };
 
@@ -160,10 +169,10 @@ export default function Grades() {
     setFormData({
       id: grade.id,
       student: selectedStudent.id,
-      subject: grade.subject,
-      grade: grade.grade.toString(),
+      subject: typeof grade.subject === "object" ? grade.subject.id : grade.subject,
+      grade: Number.parseFloat(grade.grade).toFixed(2),
       grade_type: grade.grade_type,
-      date_g: grade.date_g.split("T")[0],
+      date_g: grade.date_g ? new Date(grade.date_g).toISOString().split("T")[0] : new Date().toISOString().split("T")[0],
     });
     setIsEditingGrade(true);
     setIsAddingGrade(false);
@@ -173,18 +182,13 @@ export default function Grades() {
 
   const handleSaveNewGrade = async () => {
     if (!selectedStudent) return;
-    const levelId = getLevelIdByName(selectedStudent.level);
-    if (!levelId) {
-      setError("Invalid level selected. Please ensure the student's level is valid.");
-      return;
-    }
     try {
       const response = await api.post("/api/grades/add/", {
         student: formData.student,
         subject: formData.subject,
         grade: Number.parseFloat(formData.grade),
         grade_type: formData.grade_type,
-        level: levelId, // Use the numeric ID
+        level: selectedStudent.level,
         date_g: formData.date_g,
       });
       const newGrade = response.data;
@@ -205,18 +209,13 @@ export default function Grades() {
 
   const handleUpdateGrade = async () => {
     if (!selectedStudent || !selectedGrade) return;
-    const levelId = getLevelIdByName(selectedStudent.level);
-    if (!levelId) {
-      setError("Invalid level selected. Please ensure the student's level is valid.");
-      return;
-    }
     try {
       const response = await api.put(`/api/grades/edit/${formData.id}/`, {
         student: formData.student,
         subject: formData.subject,
         grade: Number.parseFloat(formData.grade),
         grade_type: formData.grade_type,
-        level: levelId, // Use the numeric ID
+        level: selectedStudent.level,
         date_g: formData.date_g,
       });
       const updatedGrade = response.data;
@@ -265,6 +264,12 @@ export default function Grades() {
       grade_type: "Test1",
       date_g: new Date().toISOString().split("T")[0],
     });
+  };
+
+  const formatDate = (dateString) => {
+    if (!dateString) return "N/A";
+    const date = new Date(dateString);
+    return date instanceof Date && !isNaN(date) ? date.toLocaleDateString() : "Invalid Date";
   };
 
   if (loading) return <div className="min-h-screen bg-[#111827] text-white p-6">Loading...</div>;
@@ -319,7 +324,13 @@ export default function Grades() {
                   <div
                     key={student.id}
                     className={`p-4 border-b border-gray-800 flex items-center gap-3 cursor-pointer hover:bg-[#172033] ${selectedStudent?.id === student.id ? "bg-[#172033]" : ""}`}
-                    onClick={() => { setSelectedStudent(student); setSelectedGrade(null); setIsAddingGrade(false); setIsEditingGrade(false); setShowDeleteConfirm(false); }}
+                    onClick={() => {
+                      setSelectedStudent(student);
+                      setSelectedGrade(null);
+                      setIsAddingGrade(false);
+                      setIsEditingGrade(false);
+                      setShowDeleteConfirm(false);
+                    }}
                   >
                     <img src={student.photo || "/placeholder.svg"} alt={student.nom} className="h-10 w-10 rounded-full object-cover" />
                     <div className="flex-1">
@@ -343,7 +354,9 @@ export default function Grades() {
                   <h2 className="text-lg font-medium">Academic Performance</h2>
                 </div>
                 {selectedStudent && gradesData[selectedStudent.id] && (
-                  <button className="bg-blue-600 hover:bg-blue-700 p-2 rounded-lg" onClick={handleAddGrade}><Plus className="h-5 w-5" /></button>
+                  <button className="bg-blue-600 hover:bg-blue-700 p-2 rounded-lg" onClick={handleAddGrade}>
+                    <Plus className="h-5 w-5" />
+                  </button>
                 )}
               </div>
 
@@ -418,8 +431,13 @@ export default function Grades() {
                         </div>
                       </div>
                       <div className="flex gap-3">
-                        <button className="px-4 py-2 bg-gray-700 hover:bg-gray-600 rounded-lg" onClick={handleCancelForm}>Cancel</button>
-                        <button className="px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded-lg flex items-center gap-2" onClick={isAddingGrade ? handleSaveNewGrade : handleUpdateGrade}>
+                        <button className="px-4 py-2 bg-gray-700 hover:bg-gray-600 rounded-lg" onClick={handleCancelForm}>
+                          Cancel
+                        </button>
+                        <button
+                          className="px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded-lg flex items-center gap-2"
+                          onClick={isAddingGrade ? handleSaveNewGrade : handleUpdateGrade}
+                        >
                           <Save className="h-4 w-4" /> {isAddingGrade ? "Add" : "Update"}
                         </button>
                       </div>
@@ -434,7 +452,9 @@ export default function Grades() {
                       </div>
                       <p className="mb-4">Are you sure you want to delete the grade for "{getSubject(selectedGrade.subject).nom}"?</p>
                       <div className="flex gap-3">
-                        <button className="px-4 py-2 bg-gray-700 hover:bg-gray-600 rounded-lg" onClick={handleCancelForm}>Cancel</button>
+                        <button className="px-4 py-2 bg-gray-700 hover:bg-gray-600 rounded-lg" onClick={handleCancelForm}>
+                          Cancel
+                        </button>
                         <button className="px-4 py-2 bg-red-600 hover:bg-red-700 rounded-lg flex items-center gap-2" onClick={handleDeleteGrade}>
                           <Trash2 className="h-4 w-4" /> Delete
                         </button>
@@ -457,19 +477,34 @@ export default function Grades() {
                           </tr>
                         </thead>
                         <tbody>
-                          {gradesData[selectedStudent.id]?.grades?.map((grade) => (
-                            <tr key={grade.id} className="hover:bg-[#172033]">
-                              <td className="px-4 py-2">{getSubject(grade.subject).nom}</td>
-                              <td className="px-4 py-2">{grade.grade_type}</td>
-                              <td className="px-4 py-2">{grade.grade}/20</td>
-                              <td className="px-4 py-2"><span className={getGradeColor(grade.grade)}>{calculateGrade(grade.grade)}</span></td>
-                              <td className="px-4 py-2">{new Date(grade.date_g).toLocaleDateString()}</td>
-                              <td className="px-4 py-2 flex gap-2">
-                                <button className="text-blue-400 hover:text-blue-300" onClick={(e) => { e.stopPropagation(); handleEditGrade(grade); }}><Edit size={14} /></button>
-                                <button className="text-red-400 hover:text-red-300" onClick={(e) => { e.stopPropagation(); setSelectedGrade(grade); setShowDeleteConfirm(true); }}><Trash2 size={14} /></button>
-                              </td>
+                          {gradesData[selectedStudent.id]?.grades?.length > 0 ? (
+                            gradesData[selectedStudent.id].grades.map((grade) => (
+                              <tr key={grade.id} className="hover:bg-[#172033]">
+                                <td className="px-4 py-2">{getSubject(grade.subject).nom}</td>
+                                <td className="px-4 py-2">{grade.grade_type}</td>
+                                <td className="px-4 py-2">{Number.parseFloat(grade.grade).toFixed(2)}/20</td>
+                                <td className="px-4 py-2">
+                                  <span className={getGradeColor(grade.grade)}>{calculateGrade(grade.grade)}</span>
+                                </td>
+                                <td className="px-4 py-2">{formatDate(grade.date_g)}</td>
+                                <td className="px-4 py-2 flex gap-2">
+                                  <button className="text-blue-400 hover:text-blue-300" onClick={(e) => { e.stopPropagation(); handleEditGrade(grade); }}>
+                                    <Edit size={14} />
+                                  </button>
+                                  <button
+                                    className="text-red-400 hover:text-red-300"
+                                    onClick={(e) => { e.stopPropagation(); setSelectedGrade(grade); setShowDeleteConfirm(true); }}
+                                  >
+                                    <Trash2 size={14} />
+                                  </button>
+                                </td>
+                              </tr>
+                            ))
+                          ) : (
+                            <tr>
+                              <td colSpan={6} className="p-4 text-center text-gray-400">No grades available</td>
                             </tr>
-                          )) || <tr><td colSpan={6} className="p-4 text-center text-gray-400">No grades available</td></tr>}
+                          )}
                         </tbody>
                       </table>
                     </div>
@@ -483,8 +518,12 @@ export default function Grades() {
               )}
 
               <div className="p-4 border-t border-gray-800 flex justify-between">
-                <button className="px-4 py-2 bg-[#0f172a] hover:bg-[#172033] rounded-lg flex items-center gap-2"><Filter className="h-4 w-4" /> Filter</button>
-                <button className="px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded-lg flex items-center gap-2"><Download className="h-4 w-4" /> Export Report</button>
+                <button className="px-4 py-2 bg-[#0f172a] hover:bg-[#172033] rounded-lg flex items-center gap-2">
+                  <Filter className="h-4 w-4" /> Filter
+                </button>
+                <button className="px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded-lg flex items-center gap-2">
+                  <Download className="h-4 w-4" /> Export Report
+                </button>
               </div>
             </div>
           </div>

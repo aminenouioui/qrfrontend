@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import api from "../api"; // Ensure this points to your axios instance
+import api from "../api";
 import {
   ArrowLeft,
   Calendar,
@@ -41,8 +41,8 @@ export default function AttendanceTracking() {
     saving: false,
   });
   const [confirmDelete, setConfirmDelete] = useState(null);
+  const [attendanceVersion, setAttendanceVersion] = useState(0);
 
-  // Fetch students and levels on component mount
   useEffect(() => {
     const fetchStudentsAndLevels = async () => {
       setLoading((prev) => ({ ...prev, students: true, levels: true }));
@@ -58,20 +58,20 @@ export default function AttendanceTracking() {
         const levelData = levelsResponse.data || [];
         const levelNames = levelData.map((level) => level.level.toString());
         const idToName = {};
-        const nameToId = {};
+        const idToId = {};
         levelData.forEach((level) => {
           idToName[level.id] = level.level.toString();
-          nameToId[level.level.toString()] = level.id;
+          idToId[level.id] = level.id;
         });
 
         setLevels(["All", ...new Set(levelNames)]);
         setLevelMap(idToName);
-        setLevelIdMap(nameToId);
+        setLevelIdMap(idToId);
         setError(null);
 
         const lastSelectedStudentId = localStorage.getItem("lastSelectedStudentId");
         if (lastSelectedStudentId) {
-          const student = studentsResponse.data.find((s) => s.id === Number.parseInt(lastSelectedStudentId));
+          const student = studentsResponse.data.find((s) => s.id === parseInt(lastSelectedStudentId));
           if (student) setSelectedStudent(student);
         }
         setLoading((prev) => ({ ...prev, students: false, levels: false }));
@@ -84,7 +84,6 @@ export default function AttendanceTracking() {
     fetchStudentsAndLevels();
   }, []);
 
-  // Fetch subjects on component mount
   useEffect(() => {
     const fetchSubjects = async () => {
       setLoading((prev) => ({ ...prev, subjects: true }));
@@ -103,21 +102,29 @@ export default function AttendanceTracking() {
     fetchSubjects();
   }, []);
 
-  // Fetch class schedules for the selected student's level
   useEffect(() => {
     if (selectedStudent) {
       const fetchClassSchedule = async () => {
         setLoading((prev) => ({ ...prev, schedule: true }));
         try {
           const levelId = selectedStudent.level;
+          if (!levelId || !levelIdMap[levelId]) {
+            throw new Error(`Invalid level ID: ${levelId}. No matching level found.`);
+          }
           const response = await api.get(`/api/schedules/level/${levelId}/`);
           console.log(`Class schedule for level ${levelId}:`, response.data);
-          setClassSchedule(response.data || []);
+          const schedule = Array.isArray(response.data) ? response.data : [];
+          const uniqueIds = new Set(schedule.map((cls) => cls.id));
+          if (uniqueIds.size !== schedule.length) {
+            console.warn("Duplicate schedule IDs detected:", schedule);
+          }
+          setClassSchedule(schedule);
           setError(null);
           setLoading((prev) => ({ ...prev, schedule: false }));
         } catch (error) {
           console.error("Fetch class schedule error:", error);
           setError(`Failed to load class schedule: ${error.message}`);
+          setClassSchedule([]);
           setLoading((prev) => ({ ...prev, schedule: false }));
         }
       };
@@ -125,35 +132,112 @@ export default function AttendanceTracking() {
     } else {
       setClassSchedule([]);
     }
-  }, [selectedStudent]);
+  }, [selectedStudent, levelIdMap]);
 
-  // Function to fetch attendance data
-  const fetchAttendance = async () => {
-    if (!selectedStudent) return;
-
-    setLoading((prev) => ({ ...prev, attendance: true }));
-    try {
-      const response = await api.get(`/api/attendance/${selectedStudent.id}/`);
-      console.log(`Fetched attendance for ${selectedStudent.id}:`, response.data);
-      setAttendanceData((prev) => ({
-        ...prev,
-        [selectedStudent.id]: response.data || {},
-      }));
-      setError(null);
-    } catch (error) {
-      console.error("Fetch attendance error:", error);
-      setError(`Failed to load attendance: ${error.message}`);
-    } finally {
-      setLoading((prev) => ({ ...prev, attendance: false }));
-    }
-  };
-
-  // Fetch attendance data when selectedStudent changes
   useEffect(() => {
-    fetchAttendance();
-  }, [selectedStudent]);
+    if (selectedStudent) {
+      console.log(`Fetching attendance for student ${selectedStudent.id}`);
+      const fetchAttendance = async () => {
+        setLoading((prev) => ({ ...prev, attendance: true }));
+        try {
+          const response = await api.get(`/api/attendance/${selectedStudent.id}/`);
+          console.log(`Fetched attendance for ${selectedStudent.id}:`, response.data);
 
-  // Filter students based on search and level
+          if (!response.data || Object.keys(response.data).length === 0) {
+            console.log(`No attendance data found for student ${selectedStudent.id}`);
+            setAttendanceData((prev) => ({
+              ...prev,
+              [selectedStudent.id]: {},
+            }));
+            setError("No attendance records found for this student.");
+            setTimeout(() => setError(null), 3000);
+            setLoading((prev) => ({ ...prev, attendance: false }));
+            return;
+          }
+
+          const normalizedData = {};
+          Object.keys(response.data).forEach((key) => {
+            const status = response.data[key];
+            normalizedData[key] = typeof status === "string" ? status.toLowerCase() : status;
+          });
+
+          setAttendanceData((prev) => ({
+            ...prev,
+            [selectedStudent.id]: normalizedData,
+          }));
+          setError(null);
+          setLoading((prev) => ({ ...prev, attendance: false }));
+        } catch (error) {
+          console.error("Fetch attendance error:", error);
+          setError(`Failed to load attendance: ${error.message}`);
+          setAttendanceData((prev) => ({
+            ...prev,
+            [selectedStudent.id]: {},
+          }));
+          setLoading((prev) => ({ ...prev, attendance: false }));
+        }
+      };
+      fetchAttendance();
+    }
+  }, [selectedStudent, attendanceVersion]);
+
+  useEffect(() => {
+    const ws = new WebSocket("ws://localhost:8000/ws/attendance/");
+
+    ws.onopen = () => {
+      console.log("WebSocket connection established");
+    };
+
+    ws.onmessage = (event) => {
+      try {
+        const message = JSON.parse(event.data);
+        console.log("WebSocket message received:", message);
+
+        const { studentId, scheduleId, date, status } = message;
+
+        if (!studentId || !scheduleId || !date) {
+          console.error("Invalid WebSocket message format:", message);
+          return;
+        }
+        const normalizedStatus = status ? status.toLowerCase() : null;
+        console.log(`Normalized status (WebSocket): ${normalizedStatus}`);
+
+        setAttendanceData((prev) => {
+          const updatedData = { ...prev };
+          if (!updatedData[studentId]) updatedData[studentId] = {};
+          const dateKey = `${date}-${scheduleId}`;
+          if (normalizedStatus) {
+            updatedData[studentId][dateKey] = normalizedStatus;
+          } else {
+            delete updatedData[studentId][dateKey];
+          }
+          console.log(`Updated attendance for student ${studentId}, dateKey ${dateKey}: ${normalizedStatus || "Deleted"}`);
+          return updatedData;
+        });
+
+        setAttendanceVersion((v) => v + 1);
+
+        setError(`Attendance ${normalizedStatus ? "updated" : "deleted"} for student ${studentId}`);
+        setTimeout(() => setError(null), 2000);
+      } catch (error) {
+        console.error("Error processing WebSocket message:", error);
+      }
+    };
+
+    ws.onerror = (error) => {
+      console.error("WebSocket error:", error);
+      setError("WebSocket connection error");
+    };
+
+    ws.onclose = () => {
+      console.log("WebSocket connection closed");
+    };
+
+    return () => {
+      ws.close();
+    };
+  }, []);
+
   const filteredStudents = students.filter((student) => {
     const matchesSearch =
       searchQuery === "" ||
@@ -161,35 +245,35 @@ export default function AttendanceTracking() {
       student.prenom.toLowerCase().includes(searchQuery.toLowerCase()) ||
       String(student.id).includes(searchQuery);
 
-    const studentLevelId = student.level ? student.level.toString() : null;
-    const selectedLevelId = selectedLevel === "All" ? null : levelIdMap[selectedLevel]?.toString();
+    const studentLevelId = student.level;
+    const selectedLevelId = selectedLevel === "All" ? null : levelIdMap[selectedLevel];
     const matchesLevel =
       selectedLevel === "All" || (studentLevelId && selectedLevelId && studentLevelId === selectedLevelId);
 
     return matchesSearch && matchesLevel;
   });
 
-  // Get subject name by ID
   const getSubjectName = (subjectId) => {
     const subject = subjects.find((s) => s.id === subjectId);
     return subject ? subject.nom : `Subject ${subjectId}`;
   };
 
   const getClasseName = (classeId) => {
-    return `Room ${classeId}`; // Replace with proper fetching if needed
+    return `Room ${classeId}`;
   };
 
-  // Get week dates (Monday to Friday)
   const getWeekDates = (date) => {
     const day = date.getDay();
     const diff = date.getDate() - day + (day === 0 ? -6 : 1);
     const monday = new Date(date);
     monday.setDate(diff);
+    monday.setHours(0, 0, 0, 0);
 
     const weekDates = [];
     for (let i = 0; i < 5; i++) {
       const date = new Date(monday);
       date.setDate(monday.getDate() + i);
+      date.setHours(0, 0, 0, 0);
       weekDates.push(date);
     }
     return weekDates;
@@ -203,6 +287,7 @@ export default function AttendanceTracking() {
 
   const formatDateKey = (date) => {
     const dateObj = new Date(date);
+    dateObj.setHours(0, 0, 0, 0);
     return `${dateObj.getFullYear()}-${String(dateObj.getMonth() + 1).padStart(2, "0")}-${String(dateObj.getDate()).padStart(2, "0")}`;
   };
 
@@ -220,7 +305,6 @@ export default function AttendanceTracking() {
     setSelectedClass(null);
   };
 
-  // Calculate attendance statistics
   const calculateAttendance = (studentId) => {
     if (!attendanceData[studentId]) return { present: 0, absent: 0, retard: 0, att: 0, percentage: 0 };
 
@@ -235,23 +319,21 @@ export default function AttendanceTracking() {
     return { present, absent, retard, att, percentage };
   };
 
-  // Get attendance status
   const getAttendanceStatus = useCallback(
     (studentId, classId, date) => {
       if (!studentId || !attendanceData[studentId]) {
         console.log(`No attendance data for student ${studentId}`);
-        return null;
+        return "not_set";
       }
 
       const dateKey = `${formatDateKey(date)}-${classId}`;
       const status = attendanceData[studentId][dateKey];
       console.log(`Attendance check: student=${studentId}, class=${classId}, date=${formatDateKey(date)}, status=${status || "Not Set"}`);
-      return status;
+      return status || "not_set";
     },
-    [attendanceData],
+    [attendanceData, attendanceVersion],
   );
 
-  // Update attendance status
   const updateAttendanceStatus = async (classId, date, status) => {
     if (!selectedStudent || !classId || !date) return;
 
@@ -260,7 +342,6 @@ export default function AttendanceTracking() {
     setError("Saving attendance status...");
 
     try {
-      // Optimistically update the attendance data
       setAttendanceData((prev) => {
         const updatedData = { ...prev };
         if (!updatedData[selectedStudent.id]) updatedData[selectedStudent.id] = {};
@@ -278,15 +359,12 @@ export default function AttendanceTracking() {
       const response = await api.post("/api/attendance/add/", apiData);
       console.log("POST response:", response.data);
 
-      // Refetch attendance data to sync with backend
-      await fetchAttendance();
-
+      setAttendanceVersion((v) => v + 1);
       setError("Attendance saved successfully!");
       setTimeout(() => setError(null), 2000);
     } catch (error) {
       console.error("Update attendance error:", error);
       setError(`Failed to update attendance: ${error.response?.data?.detail || error.message}`);
-      // Rollback on error
       setAttendanceData((prev) => {
         const updatedData = { ...prev };
         if (updatedData[selectedStudent.id] && updatedData[selectedStudent.id][dateKey]) {
@@ -299,7 +377,6 @@ export default function AttendanceTracking() {
     }
   };
 
-  // Delete attendance record
   const deleteAttendance = async (classId, date) => {
     if (!selectedStudent || !classId || !date) return;
 
@@ -309,7 +386,6 @@ export default function AttendanceTracking() {
     try {
       await api.delete(`/api/attendance/delete/${selectedStudent.id}/${classId}/${formatDateKey(date)}/`);
 
-      // Update local state immediately
       setAttendanceData((prev) => {
         const updatedData = { ...prev };
         if (updatedData[selectedStudent.id] && updatedData[selectedStudent.id][dateKey]) {
@@ -318,9 +394,7 @@ export default function AttendanceTracking() {
         return updatedData;
       });
 
-      // Refetch attendance data to sync with backend
-      await fetchAttendance();
-
+      setAttendanceVersion((v) => v + 1);
       setSelectedClass(null);
       setSelectedDate(null);
       setConfirmDelete(null);
@@ -333,7 +407,6 @@ export default function AttendanceTracking() {
     }
   };
 
-  // Get status color
   const getStatusColor = (status) => {
     switch (status) {
       case "present":
@@ -344,12 +417,14 @@ export default function AttendanceTracking() {
         return "bg-yellow-500/20 text-yellow-400 border-yellow-500/30";
       case "att":
         return "bg-blue-500/20 text-blue-400 border-blue-500/30";
+      case "not_set":
+        return "bg-[#0f172a] text-gray-400";
       default:
+        console.warn(`Unknown status: ${status}, using default color`);
         return "bg-[#0f172a] text-gray-400";
     }
   };
 
-  // Get status icon
   const getStatusIcon = (status) => {
     switch (status) {
       case "present":
@@ -360,31 +435,31 @@ export default function AttendanceTracking() {
         return <Clock className="h-4 w-4 text-yellow-400" />;
       case "att":
         return <Clock className="h-4 w-4 text-blue-400" />;
+      case "not_set":
+        return <Clock className="h-4 w-4" />;
       default:
+        console.warn(`Unknown status: ${status}, using default icon`);
         return <Clock className="h-4 w-4" />;
     }
   };
 
-  // Map day number to day name
   const getDayName = (dayNumber) => {
     const days = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
     return days[dayNumber];
   };
 
-  // Get classes for a specific day
   const getClassesForDay = (dayName) => {
     const dayMap = {
-      Monday: ["Monday", "Mon", "monday", "mon", "MON"],
-      Tuesday: ["Tuesday", "Tue", "tuesday", "tue", "TUE"],
-      Wednesday: ["Wednesday", "Wed", "wednesday", "wed", "WED"],
-      Thursday: ["Thursday", "Thu", "thursday", "thu", "THU"],
-      Friday: ["Friday", "Fri", "friday", "fri", "FRI"],
+      Monday: ["MONDAY", "MON", "Monday", "Mon", "monday", "mon"],
+      Tuesday: ["TUESDAY", "TUE", "Tuesday", "Tue", "tuesday", "tue"],
+      Wednesday: ["WEDNESDAY", "WED", "Wednesday", "Wed", "wednesday", "wed"],
+      Thursday: ["THURSDAY", "THU", "Thursday", "Thu", "thursday", "thu"],
+      Friday: ["FRIDAY", "FRI", "Friday", "Fri", "friday", "fri"],
     };
-    const possibleDays = dayMap[dayName] || [dayName.toLowerCase()];
+    const possibleDays = dayMap[dayName] || [dayName];
     return classSchedule.filter((cls) => cls.day && possibleDays.includes(cls.day.toUpperCase()));
   };
 
-  // Handle student selection
   const handleStudentSelect = (student) => {
     setSelectedStudent(student);
     localStorage.setItem("lastSelectedStudentId", student.id);
@@ -394,7 +469,6 @@ export default function AttendanceTracking() {
 
   return (
     <div className="min-h-screen bg-[#111827] text-white">
-      {/* Header */}
       <header className="bg-[#1e293b] p-4">
         <div className="container mx-auto">
           <div className="flex items-center gap-3">
@@ -412,19 +486,18 @@ export default function AttendanceTracking() {
         </div>
       </header>
 
-      {/* Main Content */}
       <main className="container mx-auto p-6">
         {error && (
           <div
             className={`${
-              error.includes("saved successfully") || error.includes("deleted successfully")
+              error.includes("saved successfully") || error.includes("deleted successfully") || error.includes("updated")
                 ? "bg-green-600/20 border-green-600/30"
                 : error.includes("Saving") || error.includes("Deleting")
                 ? "bg-blue-600/20 border-blue-600/30"
                 : "bg-red-600/20 border-red-600/30"
             } p-4 rounded-lg mb-6 flex items-center gap-2`}
           >
-            {error.includes("saved successfully") || error.includes("deleted successfully") ? (
+            {error.includes("saved successfully") || error.includes("deleted successfully") || error.includes("updated") ? (
               <Check className="h-5 w-5 text-green-400" />
             ) : error.includes("Saving") || error.includes("Deleting") ? (
               <Clock className="h-5 w-5 text-blue-400" />
@@ -436,7 +509,6 @@ export default function AttendanceTracking() {
         )}
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* Left Column - Student List */}
           <div className="lg:col-span-1">
             <div className="bg-[#1e293b] rounded-xl overflow-hidden">
               <div className="p-4 border-b border-gray-800">
@@ -501,7 +573,7 @@ export default function AttendanceTracking() {
                           {student.prenom} {student.nom}
                         </div>
                         <div className="text-sm text-gray-400">
-                          ID: {student.id} • {levelMap[student.level] || student.level}
+                          ID: {student.id} • {levelMap[student.level] || `Level ${student.level}`}
                         </div>
                       </div>
                       <div
@@ -522,10 +594,8 @@ export default function AttendanceTracking() {
             </div>
           </div>
 
-          {/* Right Column - Class Schedule and Attendance */}
           <div className="lg:col-span-2">
             <div className="bg-[#1e293b] rounded-xl overflow-hidden">
-              {/* Week Header */}
               <div className="p-4 border-b border-gray-800 flex justify-between items-center">
                 <div className="flex items-center gap-3">
                   <div className="bg-blue-500/20 p-2 rounded-full">
@@ -551,7 +621,6 @@ export default function AttendanceTracking() {
 
               {selectedStudent ? (
                 <div>
-                  {/* Student Attendance Info */}
                   <div className="p-4 border-b border-gray-800 bg-[#172033]">
                     <div className="flex items-center gap-3">
                       <img
@@ -564,12 +633,11 @@ export default function AttendanceTracking() {
                           {selectedStudent.prenom} {selectedStudent.nom}
                         </div>
                         <div className="text-sm text-gray-400">
-                          ID: {selectedStudent.id} • {levelMap[selectedStudent.level] || selectedStudent.level}
+                          ID: {selectedStudent.id} • {levelMap[selectedStudent.level] || `Level ${selectedStudent.level}`}
                         </div>
                       </div>
                     </div>
 
-                    {/* Attendance Stats */}
                     <div className="grid grid-cols-4 gap-4 mt-4">
                       <div className="bg-[#0f172a] rounded-lg p-3">
                         <div className="text-sm text-gray-400">Present</div>
@@ -604,7 +672,6 @@ export default function AttendanceTracking() {
                     </div>
                   </div>
 
-                  {/* Weekly Schedule Grid */}
                   <div className="p-4">
                     <h3 className="font-medium mb-4">Weekly Class Schedule</h3>
 
@@ -635,18 +702,27 @@ export default function AttendanceTracking() {
                                 const status = getAttendanceStatus(selectedStudent.id, cls.id, date);
                                 const isSelected =
                                   selectedClass?.id === cls.id && selectedDate?.getTime() === date.getTime();
-                                const isInFuture = date > new Date();
+                                const startOfWeek = new Date(weekDates[0]);
+                                const endOfWeek = new Date(weekDates[4]);
+                                const isSelectable = date >= startOfWeek && date <= endOfWeek;
 
                                 return (
                                   <div
                                     key={cls.id}
                                     className={`p-3 flex items-center justify-between cursor-pointer hover:bg-[#172033] ${
                                       isSelected ? "bg-[#172033]" : ""
-                                    }`}
-                                    onClick={() => {
-                                      if (!isInFuture) {
+                                    } ${!isSelectable ? "opacity-50 cursor-not-allowed" : ""}`}
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      console.log(
+                                        `Clicked class: id=${cls.id}, day=${cls.day}, date=${date.toISOString()}, isSelectable=${isSelectable}`,
+                                      );
+                                      if (isSelectable) {
                                         setSelectedClass(cls);
                                         setSelectedDate(date);
+                                        console.log(`Set selectedClass:`, cls, `selectedDate:`, date);
+                                      } else {
+                                        console.log(`Click ignored: Date outside current week`);
                                       }
                                     }}
                                   >
@@ -673,7 +749,7 @@ export default function AttendanceTracking() {
                                           {status ? status.charAt(0).toUpperCase() + status.slice(1) : "Not Set"}
                                         </span>
                                       </div>
-                                      {status && !isInFuture && (
+                                      {status && isSelectable && (
                                         <button
                                           className="text-red-400 hover:text-red-600"
                                           onClick={(e) => {
@@ -699,7 +775,6 @@ export default function AttendanceTracking() {
                     })}
                   </div>
 
-                  {/* Attendance Status Controls */}
                   {selectedClass && selectedDate && (
                     <div className="p-4 border-t border-gray-800 bg-[#172033]">
                       <div className="flex items-center justify-between mb-4">
@@ -721,7 +796,7 @@ export default function AttendanceTracking() {
                               : "bg-[#0f172a] text-green-400 hover:bg-green-500/20"
                           }`}
                           onClick={() => updateAttendanceStatus(selectedClass.id, selectedDate, "present")}
-                          disabled={new Date(selectedDate) > new Date() || loading.saving}
+                          disabled={loading.saving}
                         >
                           <Check className="h-5 w-5" />
                           <span>Present</span>
@@ -733,7 +808,7 @@ export default function AttendanceTracking() {
                               : "bg-[#0f172a] text-red-400 hover:bg-red-500/20"
                           }`}
                           onClick={() => updateAttendanceStatus(selectedClass.id, selectedDate, "absent")}
-                          disabled={new Date(selectedDate) > new Date() || loading.saving}
+                          disabled={loading.saving}
                         >
                           <X className="h-5 w-5" />
                           <span>Absent</span>
@@ -745,7 +820,7 @@ export default function AttendanceTracking() {
                               : "bg-[#0f172a] text-yellow-400 hover:bg-yellow-500/20"
                           }`}
                           onClick={() => updateAttendanceStatus(selectedClass.id, selectedDate, "retard")}
-                          disabled={new Date(selectedDate) > new Date() || loading.saving}
+                          disabled={loading.saving}
                         >
                           <Clock className="h-5 w-5" />
                           <span>Retard</span>
@@ -757,7 +832,7 @@ export default function AttendanceTracking() {
                               : "bg-[#0f172a] text-blue-400 hover:bg-blue-500/20"
                           }`}
                           onClick={() => updateAttendanceStatus(selectedClass.id, selectedDate, "att")}
-                          disabled={new Date(selectedDate) > new Date() || loading.saving}
+                          disabled={loading.saving}
                         >
                           <Clock className="h-5 w-5" />
                           <span>En Attente</span>
@@ -773,7 +848,6 @@ export default function AttendanceTracking() {
                 </div>
               )}
 
-              {/* Actions */}
               <div className="p-4 border-t border-gray-800 flex justify-between">
                 <button className="px-4 py-2 bg-[#0f172a] hover:bg-[#172033] rounded-lg flex items-center gap-2">
                   <Filter className="h-4 w-4" />
@@ -788,7 +862,6 @@ export default function AttendanceTracking() {
           </div>
         </div>
 
-        {/* Attendance Legend */}
         <div className="mt-6 bg-[#1e293b] rounded-xl p-4">
           <h3 className="font-medium mb-4">Attendance Status Legend</h3>
           <div className="flex flex-wrap gap-6">
@@ -811,7 +884,6 @@ export default function AttendanceTracking() {
           </div>
         </div>
 
-        {/* Confirmation Dialog */}
         {confirmDelete && (
           <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
             <div className="bg-[#1e293b] p-6 rounded-xl max-w-md w-full">

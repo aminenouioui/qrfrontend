@@ -59,7 +59,7 @@ function GestionFreres() {
       color: "from-pink-500 to-pink-600",
       stats: "98,2% de présence",
       action: "Voir les Registres",
-      onClick: () => navigate("/admin/freres/presence"),
+      onClick: () => navigate("/admin/parentnotifications"),
     },
   ];
 

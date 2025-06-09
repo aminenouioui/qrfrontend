@@ -16,7 +16,7 @@ import {
 
 export default function ClassSchedule() {
   const [currentWeek, setCurrentWeek] = useState(new Date());
-  const [selectedClass, setSelectedClass] = useState(null);
+  const [selectedTeacher, setSelectedTeacher] = useState(null);
   const [isAddingClass, setIsAddingClass] = useState(false);
   const [isEditingClass, setIsEditingClass] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
@@ -25,47 +25,37 @@ export default function ClassSchedule() {
   const [formData, setFormData] = useState({
     subject: "",
     day: "MON",
-    start_time: "08:00",
-    end_time: "10:00",
+    start_time: "08:00:00",
+    end_time: "10:00:00",
     teacher: "",
     classe: "",
-    level: "",
     notes: "",
   });
 
   const [subjects, setSubjects] = useState([]);
   const [teachers, setTeachers] = useState([]);
   const [schedules, setSchedules] = useState([]);
-  const [levels, setLevels] = useState([]);
   const [classrooms, setClassrooms] = useState([]);
-  const [selectedTeacher, setSelectedTeacher] = useState(null);
 
   const weekdays = ["MON", "TUE", "WED", "THU", "FRI"];
-  const timeSlots = ["08:00", "10:00", "12:00", "14:00", "16:00"];
+  const timeSlots = ["08:00:00", "10:00:00", "12:00:00", "14:00:00", "16:00:00"];
 
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const [subjectsRes, teachersRes, levelsRes, classroomsRes] = await Promise.all([
+        const [subjectsRes, teachersRes, classroomsRes] = await Promise.all([
           api.get("/api/subjects/list/"),
           api.get("/api/teachers/list/"),
-          api.get("/api/levels/list/"),
           api.get("/api/classes/list/"),
         ]);
-        console.log("Subjects:", subjectsRes.data);
-        console.log("Teachers:", teachersRes.data);
-        console.log("Levels:", levelsRes.data);
-        console.log("Classrooms:", classroomsRes.data);
         setSubjects(subjectsRes.data);
         setTeachers(teachersRes.data);
-        setLevels(levelsRes.data || []);
         setClassrooms(classroomsRes.data);
         setError(null);
       } catch (error) {
-        console.error("Fetch error:", error.response ? error.response.data : error.message);
         setError(
           `Failed to load data: ${
-            error.response ? error.response.statusText : error.message
+            error.response?.data?.detail || error.message
           }`
         );
       }
@@ -76,14 +66,12 @@ export default function ClassSchedule() {
   const fetchSchedulesByTeacher = async (teacherId) => {
     try {
       const response = await api.get(`/api/schedules/teacher/${teacherId}/`);
-      console.log("Schedules for teacher", teacherId, ":", response.data);
       setSchedules(response.data);
       setError(null);
     } catch (error) {
-      console.error("Fetch schedules error:", error.response ? error.response.data : error.message);
       setError(
         `Failed to load schedules: ${
-          error.response ? error.response.statusText : error.message
+          error.response?.data?.detail || error.message
         }`
       );
     }
@@ -99,40 +87,46 @@ export default function ClassSchedule() {
 
   const handleTeacherClick = (teacher) => {
     setSelectedTeacher(teacher);
+    setFormData((prev) => ({ ...prev, teacher: teacher.id }));
   };
 
   const getSubject = (subjectObj) => {
-    const subject = subjects.find((s) => s.id === (subjectObj?.id || subjectObj)) || {
-      id: "",
-      nom: "Unknown Subject",
-    };
-    return subject;
-  };
-
-  const getTeacher = (teacherId) =>
-    teachers.find((t) => t.id === teacherId) || { id: "", nom: "Unknown", prenom: "" };
-
-  const getLevel = (levelObj) => {
-    const level = levels.find((l) => l.id === (levelObj?.id || levelObj)) || {
-      id: "",
-      level: "Unknown Level",
-    };
-    console.log("Looking for level:", levelObj, "Found:", level);
-    return level;
+    return (
+      subjects.find((s) => s.id === (subjectObj?.id || subjectObj)) || {
+        id: "",
+        nom: "Unknown Subject",
+      }
+    );
   };
 
   const getClasse = (classeObj) => {
-    const classe = classrooms.find((c) => c.id === (classeObj?.id || classeObj)) || {
-      id: "",
-      name: "Unknown Classroom",
-    };
-    return classe;
+    return (
+      classrooms.find((c) => c.id === (classeObj?.id || classeObj)) || {
+        id: "",
+        name: "Unknown Classroom",
+      }
+    );
   };
 
   const normalizeTime = (time) => {
-    if (!time) return time;
-    const [hours, minutes] = time.split(":");
-    return `${hours.padStart(2, "0")}:${minutes.padStart(2, "0")}`;
+    if (!time) return "00:00:00";
+    const [hours, minutes] = time.split(":").map((s) => s.padStart(2, "0"));
+    return `${hours}:${minutes}:00`;
+  };
+
+  const isTimeOverlap = (start, end, day, excludeId = null) => {
+    const startTime = new Date(`1970-01-01T${start}`);
+    const endTime = new Date(`1970-01-01T${end}`);
+    return schedules.some((s) => {
+      if (s.id === excludeId || s.day !== day) return false;
+      const sStart = new Date(`1970-01-01T${normalizeTime(s.start_time)}`);
+      const sEnd = new Date(`1970-01-01T${normalizeTime(s.end_time)}`);
+      return (
+        (startTime >= sStart && startTime < sEnd) ||
+        (endTime > sStart && endTime <= sEnd) ||
+        (startTime <= sStart && endTime >= sEnd)
+      );
+    });
   };
 
   const getClassForSlot = (day, time) => {
@@ -141,30 +135,29 @@ export default function ClassSchedule() {
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
-    setFormData({
-      ...formData,
-      [name]: ["teacher", "subject", "classe", "level"].includes(name) ? Number(value) || "" : value,
-    });
+    setFormData((prev) => ({
+      ...prev,
+      [name]: ["subject", "classe"].includes(name) ? Number(value) || "" : value,
+    }));
   };
 
   const handleAddClass = (day, time) => {
     if (!selectedTeacher) {
-      setError("Please select a teacher before adding a class.");
+      setError("Please select a teacher first.");
       return;
     }
-    const defaultLevelId = levels.length > 0 ? levels[0].id : "";
     setFormData({
       subject: subjects[0]?.id || "",
-      day: day,
+      day,
       start_time: time,
       end_time: getEndTime(time),
-      teacher: selectedTeacher?.id || "",
+      teacher: selectedTeacher.id,
       classe: classrooms[0]?.id || "",
-      level: defaultLevelId,
       notes: "",
     });
     setIsAddingClass(true);
     setSelectedClass(null);
+    setError(null);
   };
 
   const handleEditClass = (classItem) => {
@@ -176,71 +169,75 @@ export default function ClassSchedule() {
       end_time: normalizeTime(classItem.end_time),
       teacher: classItem.teacher,
       classe: classItem.classe?.id || classItem.classe,
-      level: classItem.level?.id || classItem.level || (levels.length > 0 ? levels[0].id : ""),
       notes: classItem.notes || "",
     });
     setIsEditingClass(true);
     setSelectedClass(classItem);
+    setError(null);
   };
 
   const getEndTime = (startTime) => {
     const [hours, minutes] = startTime.split(":").map(Number);
     const endHours = hours + 2;
-    return `${endHours.toString().padStart(2, "0")}:${minutes.toString().padStart(2, "0")}`;
+    return `${endHours.toString().padStart(2, "0")}:${minutes.toString().padStart(2, "0")}:00`;
+  };
+
+  const validateForm = () => {
+    if (!formData.subject) return "Subject is required.";
+    if (!formData.classe) return "Classroom is required.";
+    if (!formData.teacher) return "Teacher is required.";
+    if (!formData.day) return "Day is required.";
+    if (!formData.start_time || !formData.end_time) return "Start and end times are required.";
+    const start = new Date(`1970-01-01T${formData.start_time}`);
+    const end = new Date(`1970-01-01T${formData.end_time}`);
+    if (end <= start) return "End time must be later than start time.";
+    if (isTimeOverlap(formData.start_time, formData.end_time, formData.day, formData.id)) {
+      return "Time slot conflicts with an existing schedule for this teacher.";
+    }
+    return null;
   };
 
   const handleSaveNewClass = async () => {
-    if (!selectedTeacher) {
-      setError("Please select a teacher before saving a class.");
-      return;
-    }
-    if (levels.length > 0 && !formData.level) {
-      setError("Please select a level.");
-      return;
-    }
-    const isDuplicate = schedules.some(
-      (schedule) =>
-        schedule.teacher === formData.teacher &&
-        (schedule.classe?.id || schedule.classe) === formData.classe &&
-        (schedule.subject?.id || schedule.subject) === formData.subject &&
-        schedule.day === formData.day &&
-        normalizeTime(schedule.start_time) === formData.start_time
-    );
-    if (isDuplicate) {
-      setError("A schedule with the same teacher, classroom, subject, day, and start time already exists.");
+    const validationError = validateForm();
+    if (validationError) {
+      setError(validationError);
       return;
     }
     try {
-      console.log("Form data before save:", formData);
       const response = await api.post("/api/schedules/add/", formData);
-      console.log("New schedule added:", response.data);
       setSchedules((prev) => [...prev, response.data]);
-      await fetchSchedulesByTeacher(selectedTeacher.id);
       setIsAddingClass(false);
       resetForm();
       setError(null);
     } catch (error) {
-      console.error("Save error:", error.response ? error.response.data : error.message);
       setError(
         `Failed to save: ${
-          error.response ? error.response.data.detail || JSON.stringify(error.response.data) : error.message
+          error.response?.data?.detail ||
+          Object.values(error.response?.data || {}).join(", ") ||
+          error.message
         }`
       );
     }
   };
 
   const handleUpdateClass = async () => {
+    const validationError = validateForm();
+    if (validationError) {
+      setError(validationError);
+      return;
+    }
     try {
       const response = await api.put(`/api/schedules/update/${formData.id}/`, formData);
       setSchedules((prev) => prev.map((c) => (c.id === formData.id ? response.data : c)));
       setIsEditingClass(false);
-      setSelectedClass(response.data);
+      setSelectedClass(null);
       setError(null);
     } catch (error) {
-      console.error("Update error:", error.response ? error.response.data : error.message);
       setError(
         `Failed to update: ${
-          error.response ? error.response.data.detail || JSON.stringify(error.response.data) : error.message
+          error.response?.data?.detail ||
+          Object.values(error.response?.data || {}).join(", ") ||
+          error.message
         }`
       );
     }
@@ -254,36 +251,22 @@ export default function ClassSchedule() {
       setSelectedClass(null);
       setError(null);
     } catch (error) {
-      console.error("Delete error:", error.response ? error.response.data : error.message);
       setError(
         `Failed to delete: ${
-          error.response ? error.response.data.detail || JSON.stringify(error.response.data) : error.message
+          error.response?.data?.detail || error.message
         }`
       );
     }
-  };
-
-  const handleDeleteClick = (classItem) => {
-    setSelectedClass(classItem);
-    setShowDeleteConfirm(true);
-  };
-
-  const handleCancelForm = () => {
-    setIsAddingClass(false);
-    setIsEditingClass(false);
-    setShowDeleteConfirm(false);
-    resetForm();
   };
 
   const resetForm = () => {
     setFormData({
       subject: subjects[0]?.id || "",
       day: "MON",
-      start_time: "08:00",
-      end_time: "10:00",
+      start_time: "08:00:00",
+      end_time: "10:00:00",
       teacher: selectedTeacher?.id || "",
       classe: classrooms[0]?.id || "",
-      level: levels.length > 0 ? levels[0].id : "",
       notes: "",
     });
   };
@@ -303,8 +286,6 @@ export default function ClassSchedule() {
 
   const weekDates = getWeekDates(new Date(currentWeek));
   const formatDate = (date) => date.toLocaleDateString("en-US", { month: "short", day: "numeric" });
-  const prevWeek = () => setCurrentWeek(new Date(currentWeek.setDate(currentWeek.getDate() - 7)));
-  const nextWeek = () => setCurrentWeek(new Date(currentWeek.setDate(currentWeek.getDate() + 7)));
 
   return (
     <div className="min-h-screen bg-[#111827] text-white">
@@ -318,8 +299,8 @@ export default function ClassSchedule() {
               <ArrowLeft className="h-5 w-5" />
             </button>
             <div>
-              <h1 className="text-xl font-bold">Class Schedule</h1>
-              <p className="text-sm text-gray-400">View and manage class timetables</p>
+              <h1 className="text-xl font-bold">Teacher Schedule</h1>
+              <p className="text-sm text-gray-400">Manage teacher class timetables</p>
             </div>
           </div>
         </div>
@@ -337,7 +318,7 @@ export default function ClassSchedule() {
           <div className="lg:col-span-1 overflow-y-auto">
             <div className="bg-[#1e293b] rounded-xl overflow-hidden mb-6">
               <div className="p-4 border-b border-gray-800">
-                <h3 className="font-medium">All Teachers</h3>
+                <h3 className="font-medium">Select Teacher</h3>
               </div>
               <div className="max-h-[400px] overflow-y-auto">
                 {teachers.map((teacher) => (
@@ -349,6 +330,7 @@ export default function ClassSchedule() {
                     onClick={() => handleTeacherClick(teacher)}
                   >
                     <div className="font-medium">{teacher.prenom} {teacher.nom}</div>
+                    <div className="text-xs text-gray-400">{teacher.subject?.nom || "No subject"}</div>
                   </div>
                 ))}
               </div>
@@ -377,22 +359,6 @@ export default function ClassSchedule() {
                     </select>
                   </div>
                   <div>
-                    <label className="block text-sm text-gray-400 mb-1">Teacher</label>
-                    <select
-                      name="teacher"
-                      value={formData.teacher}
-                      onChange={handleInputChange}
-                      className="w-full bg-[#0f172a] border border-gray-700 rounded-lg px-3 py-2 text-white"
-                    >
-                      <option value="">Select Teacher</option>
-                      {teachers.map((teacher) => (
-                        <option key={teacher.id} value={teacher.id}>
-                          {teacher.prenom} {teacher.nom}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                  <div>
                     <label className="block text-sm text-gray-400 mb-1">Day</label>
                     <select
                       name="day"
@@ -412,8 +378,12 @@ export default function ClassSchedule() {
                     <input
                       type="time"
                       name="start_time"
-                      value={formData.start_time}
-                      onChange={handleInputChange}
+                      value={formData.start_time.slice(0, 5)}
+                      onChange={(e) =>
+                        handleInputChange({
+                          target: { name: "start_time", value: normalizeTime(e.target.value) },
+                        })
+                      }
                       className="w-full bg-[#0f172a] border border-gray-700 rounded-lg px-3 py-2 text-white"
                     />
                   </div>
@@ -422,8 +392,12 @@ export default function ClassSchedule() {
                     <input
                       type="time"
                       name="end_time"
-                      value={formData.end_time}
-                      onChange={handleInputChange}
+                      value={formData.end_time.slice(0, 5)}
+                      onChange={(e) =>
+                        handleInputChange({
+                          target: { name: "end_time", value: normalizeTime(e.target.value) },
+                        })
+                      }
                       className="w-full bg-[#0f172a] border border-gray-700 rounded-lg px-3 py-2 text-white"
                     />
                   </div>
@@ -441,26 +415,6 @@ export default function ClassSchedule() {
                           {classe.name}
                         </option>
                       ))}
-                    </select>
-                  </div>
-                  <div>
-                    <label className="block text-sm text-gray-400 mb-1">Level</label>
-                    <select
-                      name="level"
-                      value={formData.level}
-                      onChange={handleInputChange}
-                      className="w-full bg-[#0f172a] border border-gray-700 rounded-lg px-3 py-2 text-white"
-                    >
-                      <option value="">Select Level</option>
-                      {levels.length === 0 ? (
-                        <option disabled>No levels available</option>
-                      ) : (
-                        levels.map((level) => (
-                          <option key={level.id} value={level.id}>
-                            {level.level}
-                          </option>
-                        ))
-                      )}
                     </select>
                   </div>
                   <div>
@@ -483,7 +437,11 @@ export default function ClassSchedule() {
                   </button>
                   <button
                     className="px-4 py-2 bg-gray-600 rounded-lg flex items-center gap-2 hover:bg-gray-700"
-                    onClick={handleCancelForm}
+                    onClick={() => {
+                      setIsAddingClass(false);
+                      setIsEditingClass(false);
+                      setError(null);
+                    }}
                   >
                     <X className="h-4 w-4" /> Cancel
                   </button>
@@ -499,7 +457,7 @@ export default function ClassSchedule() {
                 </div>
                 <p className="text-sm text-gray-400 mb-4">
                   Are you sure you want to delete "{getSubject(selectedClass.subject).nom}" on{" "}
-                  {selectedClass.day} at {selectedClass.start_time}?
+                  {selectedClass.day} at {selectedClass.start_time.slice(0, 5)}?
                 </p>
                 <div className="flex gap-2">
                   <button
@@ -525,7 +483,7 @@ export default function ClassSchedule() {
                 <div className="flex items-center justify-between mb-4">
                   <button
                     className="p-2 bg-blue-600/20 border border-blue-600/30 rounded-lg hover:bg-blue-600/40"
-                    onClick={prevWeek}
+                    onClick={() => setCurrentWeek(new Date(currentWeek.setDate(currentWeek.getDate() - 7)))}
                   >
                     <ChevronLeft className="h-5 w-5" />
                   </button>
@@ -535,86 +493,93 @@ export default function ClassSchedule() {
                   </span>
                   <button
                     className="p-2 bg-blue-600/20 border border-blue-600/30 rounded-lg hover:bg-blue-600/40"
-                    onClick={nextWeek}
+                    onClick={() => setCurrentWeek(new Date(currentWeek.setDate(currentWeek.getDate() + 7)))}
                   >
                     <ChevronRight className="h-5 w-5" />
                   </button>
                 </div>
-                <div className="grid grid-cols-6 gap-2">
-                  <div className="col-span-1">
-                    <div className="h-12"></div>
-                    {timeSlots.map((time) => (
-                      <div
-                        key={time}
-                        className="h-24 flex items-center justify-center text-sm text-gray-400"
-                      >
-                        {time}
+                {!selectedTeacher ? (
+                  <div className="text-center text-gray-400 py-10">
+                    Please select a teacher to view their schedule.
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-6 gap-2">
+                    <div className="col-span-1">
+                      <div className="h-12"></div>
+                      {timeSlots.map((time) => (
+                        <div
+                          key={time}
+                          className="h-24 flex items-center justify-center text-sm text-gray-400"
+                        >
+                          {time.slice(0, 5)}
+                        </div>
+                      ))}
+                    </div>
+                    {weekdays.map((day, index) => (
+                      <div key={day} className="col-span-1">
+                        <div className="h-12 text-center font-medium border-b border-gray-800">
+                          {weekDates[index].toLocaleDateString("en-US", { weekday: "short" })}
+                        </div>
+                        {timeSlots.map((time) => {
+                          const classItem = getClassForSlot(day, time);
+                          return (
+                            <div
+                              key={`${day}-${time}`}
+                              className="h-24 border-b border-gray-800 p-2 relative"
+                              onClick={() => !classItem && handleAddClass(day, time)}
+                            >
+                              {classItem ? (
+                                <div className="bg-blue-600/20 p-2 rounded-lg h-full flex flex-col justify-between">
+                                  <div>
+                                    <div className="font-medium text-sm">
+                                      {getSubject(classItem.subject).nom}
+                                    </div>
+                                    <div className="text-xs text-gray-300">
+                                      {classItem.start_time.slice(0, 5)} - {classItem.end_time.slice(0, 5)}
+                                    </div>
+                                  </div>
+                                  <div className="text-xs text-blue-300">
+                                    {getClasse(classItem.classe).name}
+                                  </div>
+                                  <div className="absolute top-1 right-1 flex gap-1">
+                                    <button
+                                      className="text-blue-400 hover:text-blue-600"
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        handleEditClass(classItem);
+                                      }}
+                                    >
+                                      <Edit className="h-4 w-4" />
+                                    </button>
+                                    <button
+                                      className="text-red-400 hover:text-red-600"
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        setSelectedClass(classItem);
+                                        setShowDeleteConfirm(true);
+                                      }}
+                                    >
+                                      <Trash2 className="h-4 w-4" />
+                                    </button>
+                                  </div>
+                                </div>
+                              ) : (
+                                <div className="h-full flex items-center justify-center text-gray-600 hover:bg-gray-700/20 rounded-lg">
+                                  <Plus className="h-4 w-4" />
+                                </div>
+                              )}
+                            </div>
+                          );
+                        })}
                       </div>
                     ))}
                   </div>
-                  {weekdays.map((day, index) => (
-                    <div key={day} className="col-span-1">
-                      <div className="h-12 text-center font-medium border-b border-gray-800">
-                        {weekDates[index].toLocaleDateString("en-US", { weekday: "short" })}
-                      </div>
-                      {timeSlots.map((time) => {
-                        const classItem = getClassForSlot(day, time);
-                        return (
-                          <div
-                            key={`${day}-${time}`}
-                            className="h-24 border-b border-gray-800 p-2 relative"
-                            onClick={() => !classItem && handleAddClass(day, time)}
-                          >
-                            {classItem ? (
-                              <div className="bg-blue-600/20 p-2 rounded-lg h-full flex flex-col justify-between">
-                                <div>
-                                  <div className="font-medium text-sm">
-                                    {getSubject(classItem.subject).nom}
-                                  </div>
-                                  <div className="text-xs text-gray-300">
-                                    {getLevel(classItem.level).level}
-                                  </div>
-                                </div>
-                                <div className="text-xs text-blue-300">
-                                  {getClasse(classItem.classe).name}
-                                </div>
-                                <div className="absolute top-1 right-1 flex gap-1">
-                                  <button
-                                    className="text-blue-400 hover:text-blue-600"
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      handleEditClass(classItem);
-                                    }}
-                                  >
-                                    <Edit className="h-4 w-4" />
-                                  </button>
-                                  <button
-                                    className="text-red-400 hover:text-red-600"
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      handleDeleteClick(classItem);
-                                    }}
-                                  >
-                                    <Trash2 className="h-4 w-4" />
-                                  </button>
-                                </div>
-                              </div>
-                            ) : (
-                              <div className="h-full flex items-center justify-center text-gray-600 hover:bg-gray-700/20 rounded-lg">
-                                <Plus className="h-4 w-4" />
-                              </div>
-                            )}
-                          </div>
-                        );
-                      })}
-                    </div>
-                  ))}
-                </div>
+                )}
               </div>
             </div>
           </div>
         </div>
-      </main> 
+      </main>
     </div>
   );
 }

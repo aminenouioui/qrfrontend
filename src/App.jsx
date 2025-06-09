@@ -24,6 +24,7 @@ import ParentDetail from './components/ParentDetail'; // Add this
 import TeacherDetails from './components/teacher/teacherdetail';
 import AddParentModal from './components/parentlist';
 import ParentAccountManagement from './components/parentaccount';
+import ParentNotifications from './components/ParentNotifications';
 
 const App = () => {
   return (
@@ -57,6 +58,8 @@ const App = () => {
           <Route path="teacherdetail" element={<TeacherDetails />} />
           <Route path="parentlist" element={<AddParentModal/>} />
           <Route path="/admin/parent-accounts" element={<ParentAccountManagement />} />
+          <Route path="parentnotifications" element={<ParentNotifications />} />
+          
 
         </Route>
       </Routes>

@@ -38,7 +38,7 @@ function AddStudentModal({ isOpen, onClose, onAddStudent, levels }) {
     parent_adresse: "",
     parent_mail: "",
     parent_numero: "",
-    parent_relationship: "guardian",
+    parent_relationship: "Guardian", // Match backend enum
     parent_is_emergency_contact: true,
     parent_profession: "",
   });
@@ -83,7 +83,7 @@ function AddStudentModal({ isOpen, onClose, onAddStudent, levels }) {
         parent_adresse: "",
         parent_mail: "",
         parent_numero: "",
-        parent_relationship: "guardian",
+        parent_relationship: "Guardian",
         parent_is_emergency_contact: true,
         parent_profession: "",
       });
@@ -112,28 +112,30 @@ function AddStudentModal({ isOpen, onClose, onAddStudent, levels }) {
   const handleSubmit = async (e) => {
     e.preventDefault();
     const formData = new FormData();
+    // Student fields
     formData.append("nom", newStudent.nom);
     formData.append("prenom", newStudent.prenom);
     formData.append("date_naissance", newStudent.date_naissance);
     formData.append("level", newStudent.level);
-    formData.append("adresse", newStudent.adresse);
+    formData.append("adresse", newStudent.adresse || "");
     formData.append("mail", newStudent.mail);
     formData.append("numero", newStudent.numero);
     formData.append("admission_s", newStudent.admission_s);
     if (newStudent.photo) {
       formData.append("photo", newStudent.photo);
     }
-    if (useExistingParent) {
+    // Parent fields
+    if (useExistingParent && newStudent.parent_id) {
       formData.append("parent_id", newStudent.parent_id);
     } else {
       formData.append("parent_nom", newStudent.parent_nom);
       formData.append("parent_prenom", newStudent.parent_prenom);
-      formData.append("parent_adresse", newStudent.parent_adresse);
+      formData.append("parent_adresse", newStudent.parent_adresse || "");
       formData.append("parent_mail", newStudent.parent_mail);
       formData.append("parent_numero", newStudent.parent_numero);
       formData.append("parent_relationship", newStudent.parent_relationship);
-      formData.append("parent_is_emergency_contact", newStudent.parent_is_emergency_contact);
-      formData.append("parent_profession", newStudent.parent_profession);
+      formData.append("parent_is_emergency_contact", newStudent.parent_is_emergency_contact.toString());
+      formData.append("parent_profession", newStudent.parent_profession || "");
     }
 
     try {
@@ -143,7 +145,17 @@ function AddStudentModal({ isOpen, onClose, onAddStudent, levels }) {
       onAddStudent(response.data.student);
       onClose();
     } catch (err) {
-      setError(err.response?.data?.error || "Failed to add student.");
+      // Improved error handling
+      const errorData = err.response?.data?.errors || {};
+      let errorMessage = "Failed to add student.";
+      if (Object.keys(errorData).length > 0) {
+        errorMessage = Object.entries(errorData)
+          .map(([field, errors]) => `${field}: ${Array.isArray(errors) ? errors.join(", ") : errors}`)
+          .join("; ");
+      } else if (err.response?.data?.message) {
+        errorMessage = err.response.data.message;
+      }
+      setError(errorMessage);
     }
   };
 
@@ -416,12 +428,13 @@ function AddStudentModal({ isOpen, onClose, onAddStudent, levels }) {
                     name="parent_relationship"
                     value={newStudent.parent_relationship}
                     onChange={handleInputChange}
+                    required={!useExistingParent}
                     className="w-full bg-[#273549] border border-gray-700 rounded-lg px-3 py-2 text-white"
                   >
-                    <option value="father">Father</option>
-                    <option value="mother">Mother</option>
-                    <option value="guardian">Guardian</option>
-                    <option value="other">Other</option>
+                    <option value="Father">Father</option>
+                    <option value="Mother">Mother</option>
+                    <option value="Guardian">Guardian</option>
+                    <option value="Other">Other</option>
                   </select>
                 </div>
                 <div className="mb-4 flex items-center">

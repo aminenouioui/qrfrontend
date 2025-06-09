@@ -6,7 +6,6 @@ import {
   MapPin,
   BookOpen,
   Clock,
-  User,
   Briefcase,
   Users,
   Award,
@@ -24,6 +23,9 @@ export default function TeacherDetails() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [activeTab, setActiveTab] = useState("overview");
+
+  const weekdays = ["MON", "TUE", "WED", "THU", "FRI"];
+  const timeSlots = ["08:00:00", "10:00:00", "12:00:00", "14:00:00", "16:00:00"];
 
   useEffect(() => {
     const fetchTeacherData = async () => {
@@ -46,6 +48,25 @@ export default function TeacherDetails() {
 
     fetchTeacherData();
   }, [teacherId]);
+
+  const getSubject = (subjectObj) => {
+    return subjectObj?.nom ? subjectObj : { nom: "Unknown Subject" };
+  };
+
+  const getClasse = (classeObj) => {
+    return classeObj?.name ? classeObj : { name: "Unknown Classroom" };
+  };
+
+  const normalizeTime = (time) => {
+    if (!time) return "00:00:00";
+    return time.slice(0, 8); // Ensure HH:MM:SS format
+  };
+
+  const getClassForSlot = (day, time) => {
+    return teacherData?.schedules?.find(
+      (c) => c.day === day && normalizeTime(c.start_time) === time
+    );
+  };
 
   if (loading) {
     return (
@@ -76,15 +97,12 @@ export default function TeacherDetails() {
 
   // Filter students by teacher's levels and prepare their grades
   const filteredStudents = students?.filter((student) =>
-    teacher.levels.includes(student.level)
+    teacher.levels?.map((l) => l.id).includes(student.level?.id)
   ) || [];
 
-  // For each filtered student, get their grades for the teacher's subject
   const studentsWithGrades = filteredStudents.map((student) => {
     const studentGrades = grades?.filter(
-      (grade) =>
-        grade.student.id === student.id &&
-        grade.subject.id === teacher.subject.id
+      (grade) => grade.student?.id === student.id && grade.subject?.id === teacher.subject?.id
     ) || [];
     return { ...student, grades: studentGrades };
   });
@@ -119,7 +137,6 @@ export default function TeacherDetails() {
                 onError={(e) => (e.target.src = "https://via.placeholder.com/128?text=No+Image")}
               />
             </div>
-
             <div className="flex-1">
               <h2 className="text-3xl font-bold bg-gradient-to-r from-white to-blue-200 bg-clip-text text-transparent">
                 {teacher.prenom} {teacher.nom}
@@ -129,7 +146,7 @@ export default function TeacherDetails() {
                   ID: {teacher.id}
                 </span>
                 <span className="px-3 py-1 bg-purple-500/20 border border-purple-500/30 rounded-md text-sm">
-                  {teacher.subject.nom || "N/A"}
+                  {getSubject(teacher.subject).nom}
                 </span>
                 <span className="px-3 py-1 bg-green-500/20 border border-green-500/30 rounded-md text-sm">
                   {teacher.status || "N/A"}
@@ -184,7 +201,7 @@ export default function TeacherDetails() {
                   <div className="space-y-4">
                     <div className="flex justify-between">
                       <span className="text-gray-400">Subject</span>
-                      <span>{teacher.subject.nom || "N/A"}</span>
+                      <span>{getSubject(teacher.subject).nom}</span>
                     </div>
                     <div className="flex justify-between">
                       <span className="text-gray-400">Date of Birth</span>
@@ -229,39 +246,55 @@ export default function TeacherDetails() {
             <div>
               <h3 className="text-xl font-bold mb-6">Weekly Schedule</h3>
               <div className="bg-[#0f172a] rounded-xl p-5">
-                <div className="overflow-x-auto">
-                  <table className="w-full">
-                    <thead>
-                      <tr>
-                        <th className="px-4 py-2 text-left">Day</th>
-                        <th className="px-4 py-2 text-left">Subject</th>
-                        <th className="px-4 py-2 text-left">Time</th>
-                        <th className="px-4 py-2 text-left">Classroom</th>
-                        <th className="px-4 py-2 text-left">Notes</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {schedules && schedules.length > 0 ? (
-                        schedules.map((schedule) => (
-                          <tr key={schedule.id} className="border-t border-gray-800">
-                            <td className="px-4 py-2">{schedule.day || "N/A"}</td>
-                            <td className="px-4 py-2">{schedule.subject.nom || "N/A"}</td>
-                            <td className="px-4 py-2">
-                              {schedule.start_time.slice(0, 5)} - {schedule.end_time.slice(0, 5)}
-                            </td>
-                            <td className="px-4 py-2">{schedule.classe.name || "N/A"}</td>
-                            <td className="px-4 py-2">{schedule.notes || "N/A"}</td>
-                          </tr>
-                        ))
-                      ) : (
-                        <tr>
-                          <td colSpan="5" className="px-4 py-2 text-center text-gray-400">
-                            No schedule available
-                          </td>
-                        </tr>
-                      )}
-                    </tbody>
-                  </table>
+                <div className="grid grid-cols-6 gap-2">
+                  <div className="col-span-1">
+                    <div className="h-12"></div>
+                    {timeSlots.map((time) => (
+                      <div
+                        key={time}
+                        className="h-24 flex items-center justify-center text-sm text-gray-400"
+                      >
+                        {time.slice(0, 5)}
+                      </div>
+                    ))}
+                  </div>
+                  {weekdays.map((day) => (
+                    <div key={day} className="col-span-1">
+                      <div className="h-12 text-center font-medium border-b border-gray-800">
+                        {day}
+                      </div>
+                      {timeSlots.map((time) => {
+                        const classItem = getClassForSlot(day, time);
+                        return (
+                          <div
+                            key={`${day}-${time}`}
+                            className="h-24 border-b border-gray-800 p-2"
+                          >
+                            {classItem ? (
+                              <div className="bg-blue-600/20 p-2 rounded-lg h-full flex flex-col justify-between">
+                                <div>
+                                  <div className="font-medium text-sm">
+                                    {getSubject(classItem.subject).nom}
+                                  </div>
+                                  <div className="text-xs text-gray-300">
+                                    {normalizeTime(classItem.start_time).slice(0, 5)} -{" "}
+                                    {normalizeTime(classItem.end_time).slice(0, 5)}
+                                  </div>
+                                </div>
+                                <div className="text-xs text-blue-300">
+                                  {getClasse(classItem.classe).name}
+                                </div>
+                              </div>
+                            ) : (
+                              <div className="h-full flex items-center justify-center text-gray-600">
+                                -
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  ))}
                 </div>
               </div>
             </div>
@@ -302,7 +335,7 @@ export default function TeacherDetails() {
                         attendances.map((record) => (
                           <tr key={record.id} className="border-t border-gray-800">
                             <td className="px-4 py-2">{record.date || "N/A"}</td>
-                            <td className="px-4 py-2">{record.subject.nom || "N/A"}</td>
+                            <td className="px-4 py-2">{getSubject(record.subject).nom}</td>
                             <td className="px-4 py-2">
                               <span
                                 className={`px-2 py-1 rounded-md text-xs ${
@@ -351,7 +384,7 @@ export default function TeacherDetails() {
                             <td className="px-4 py-2">
                               {student.prenom && student.nom ? `${student.prenom} ${student.nom}` : "Unknown"}
                             </td>
-                            <td className="px-4 py-2">{student.level || "N/A"}</td>
+                            <td className="px-4 py-2">{student.level?.level || "N/A"}</td>
                             <td className="px-4 py-2">
                               {student.grades.length > 0 ? (
                                 <ul className="space-y-1">
@@ -411,37 +444,34 @@ export default function TeacherDetails() {
                       </tr>
                     </thead>
                     <tbody>
-                      {teacherData.grades && teacherData.grades.length > 0 ? (
-                        teacherData.grades.map((grade) => {
-                          console.log("Grade:", grade); // Debug log to inspect grade data
-                          return (
-                            <tr key={grade.id} className="border-t border-gray-800">
-                              <td className="px-4 py-2">
-                                {grade.student && (grade.student.prenom || grade.student.nom)
-                                  ? `${grade.student.prenom || ""} ${grade.student.nom || ""}`.trim()
-                                  : "Unknown"}
-                              </td>
-                              <td className="px-4 py-2">{grade.subject && grade.subject.nom ? grade.subject.nom : "N/A"}</td>
-                              <td className="px-4 py-2">
-                                <span
-                                  className={`px-2 py-1 rounded-md text-xs ${
-                                    grade.grade >= 90
-                                      ? "bg-green-500/20 text-green-400"
-                                      : grade.grade >= 80
-                                      ? "bg-blue-500/20 text-blue-400"
-                                      : grade.grade >= 70
-                                      ? "bg-yellow-500/20 text-yellow-400"
-                                      : "bg-red-500/20 text-red-400"
-                                  }`}
-                                >
-                                  {grade.grade || "N/A"}
-                                </span>
-                              </td>
-                              <td className="px-4 py-2">{grade.grade_type || "N/A"}</td>
-                              <td className="px-4 py-2">{grade.date_g || "N/A"}</td>
-                            </tr>
-                          );
-                        })
+                      {grades && grades.length > 0 ? (
+                        grades.map((grade) => (
+                          <tr key={grade.id} className="border-t border-gray-800">
+                            <td className="px-4 py-2">
+                              {grade.student && (grade.student.prenom || grade.student.nom)
+                                ? `${grade.student.prenom || ""} ${grade.student.nom || ""}`.trim()
+                                : "Unknown"}
+                            </td>
+                            <td className="px-4 py-2">{getSubject(grade.subject).nom}</td>
+                            <td className="px-4 py-2">
+                              <span
+                                className={`px-2 py-1 rounded-md text-xs ${
+                                  grade.grade >= 90
+                                    ? "bg-green-500/20 text-green-400"
+                                    : grade.grade >= 80
+                                    ? "bg-blue-500/20 text-blue-400"
+                                    : grade.grade >= 70
+                                    ? "bg-yellow-500/20 text-yellow-400"
+                                    : "bg-red-500/20 text-red-400"
+                                }`}
+                              >
+                                {grade.grade || "N/A"}
+                              </span>
+                            </td>
+                            <td className="px-4 py-2">{grade.grade_type || "N/A"}</td>
+                            <td className="px-4 py-2">{grade.date_g || "N/A"}</td>
+                          </tr>
+                        ))
                       ) : (
                         <tr>
                           <td colSpan="5" className="px-4 py-2 text-center text-gray-400">

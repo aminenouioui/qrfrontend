@@ -13,6 +13,7 @@ export default defineConfig({
       "/edit": "http://localhost:8000", // Added for edit endpoint
       "/add-classe": "http://localhost:8000",
       "/add-classe-list": "http://localhost:8000",
+      
      
     },
   },

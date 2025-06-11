@@ -53,6 +53,32 @@ export default function TeacherAttendanceTracking() {
     };
   };
 
+  // WebSocket for real-time attendance updates
+  useEffect(() => {
+    const ws = new WebSocket('ws://localhost:8000/ws/attendance/'); // Replace with your backend URL
+    
+    ws.onopen = () => console.log('WebSocket connected');
+    ws.onmessage = (event) => {
+      const data = JSON.parse(event.data);
+      if (data.type === 'attendance_update' && selectedTeacher?.id === data.teacherId) {
+        setAttendanceData((prev) => {
+          const dateKey = `${data.date}-${data.subjectId}-${data.scheduleId}`;
+          return {
+            ...prev,
+            [selectedTeacher.id]: {
+              ...(prev[selectedTeacher.id] || {}),
+              [dateKey]: data.status,
+            },
+          };
+        });
+      }
+    };
+    ws.onclose = () => console.log('WebSocket disconnected');
+    ws.onerror = (error) => console.error('WebSocket error:', error);
+
+    return () => ws.close();
+  }, [selectedTeacher]);
+
   // Fetch teachers, levels, and subjects on mount
   useEffect(() => {
     const fetchInitialData = async () => {

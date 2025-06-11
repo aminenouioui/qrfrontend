@@ -1,26 +1,11 @@
-import { useState, useRef, useEffect, useMemo, useCallback } from "react";
-import { Search, Plus, Filter, ChevronLeft, ChevronRight, Download, Trash2, Edit, Eye, X, Upload, Printer } from "lucide-react";
+import { useState, useRef, useEffect } from "react";
+import { Search, Plus, Filter, ChevronLeft, ChevronRight, Download, Trash2, Edit, Eye, X, Upload } from "lucide-react";
 import { Canvas } from "@react-three/fiber";
 import { OrbitControls, PerspectiveCamera, Environment, Html } from "@react-three/drei";
-import { useNavigate } from "react-router-dom";
-import api from "../api";
+import { useNavigate } from "react-router-dom"; // Replaced useRouter with useNavigate
+import api from "../api"; // Adjust path based on your structure
 
-// Optional: For table virtualization (uncomment if needed)
-// import { FixedSizeList as List } from "react-window";
-
-// Custom debounce hook
-function useDebounce(value, delay) {
-  const [debouncedValue, setDebouncedValue] = useState(value);
-  useEffect(() => {
-    const handler = setTimeout(() => {
-      setDebouncedValue(value);
-    }, delay);
-    return () => clearTimeout(handler);
-  }, [value, delay]);
-  return debouncedValue;
-}
-
-// Add Student Modal Component (unchanged)
+// Add Student Modal Component
 function AddStudentModal({ isOpen, onClose, onAddStudent, levels }) {
   const [newStudent, setNewStudent] = useState({
     nom: "",
@@ -32,38 +17,10 @@ function AddStudentModal({ isOpen, onClose, onAddStudent, levels }) {
     numero: "",
     photo: null,
     admission_s: "att",
-    parent_id: "",
-    parent_nom: "",
-    parent_prenom: "",
-    parent_adresse: "",
-    parent_mail: "",
-    parent_numero: "",
-    parent_relationship: "Guardian", // Match backend enum
-    parent_is_emergency_contact: true,
-    parent_profession: "",
   });
-  const [parents, setParents] = useState([]);
-  const [useExistingParent, setUseExistingParent] = useState(true);
   const [previewUrl, setPreviewUrl] = useState("/media/placeholder.svg");
   const fileInputRef = useRef(null);
   const [error, setError] = useState(null);
-
-  useEffect(() => {
-    if (isOpen) {
-      const fetchParents = async () => {
-        try {
-          const response = await api.get("/api/parents/list/");
-          setParents(Array.isArray(response.data) ? response.data : []);
-          if (response.data.length > 0) {
-            setNewStudent((prev) => ({ ...prev, parent_id: response.data[0].id }));
-          }
-        } catch (err) {
-          setError("Failed to load parents.");
-        }
-      };
-      fetchParents();
-    }
-  }, [isOpen]);
 
   useEffect(() => {
     if (isOpen && levels.length > 0) {
@@ -77,28 +34,15 @@ function AddStudentModal({ isOpen, onClose, onAddStudent, levels }) {
         numero: "",
         photo: null,
         admission_s: "att",
-        parent_id: parents[0]?.id || "",
-        parent_nom: "",
-        parent_prenom: "",
-        parent_adresse: "",
-        parent_mail: "",
-        parent_numero: "",
-        parent_relationship: "Guardian",
-        parent_is_emergency_contact: true,
-        parent_profession: "",
       });
       setPreviewUrl("/media/placeholder.svg");
       setError(null);
-      setUseExistingParent(true);
     }
-  }, [isOpen, levels, parents]);
+  }, [isOpen, levels]);
 
   const handleInputChange = (e) => {
-    const { name, value, type, checked } = e.target;
-    setNewStudent({
-      ...newStudent,
-      [name]: type === "checkbox" ? checked : value,
-    });
+    const { name, value } = e.target;
+    setNewStudent({ ...newStudent, [name]: value });
   };
 
   const handlePhotoChange = (e) => {
@@ -112,50 +56,26 @@ function AddStudentModal({ isOpen, onClose, onAddStudent, levels }) {
   const handleSubmit = async (e) => {
     e.preventDefault();
     const formData = new FormData();
-    // Student fields
     formData.append("nom", newStudent.nom);
     formData.append("prenom", newStudent.prenom);
     formData.append("date_naissance", newStudent.date_naissance);
     formData.append("level", newStudent.level);
-    formData.append("adresse", newStudent.adresse || "");
+    formData.append("adresse", newStudent.adresse);
     formData.append("mail", newStudent.mail);
     formData.append("numero", newStudent.numero);
     formData.append("admission_s", newStudent.admission_s);
     if (newStudent.photo) {
       formData.append("photo", newStudent.photo);
     }
-    // Parent fields
-    if (useExistingParent && newStudent.parent_id) {
-      formData.append("parent_id", newStudent.parent_id);
-    } else {
-      formData.append("parent_nom", newStudent.parent_nom);
-      formData.append("parent_prenom", newStudent.parent_prenom);
-      formData.append("parent_adresse", newStudent.parent_adresse || "");
-      formData.append("parent_mail", newStudent.parent_mail);
-      formData.append("parent_numero", newStudent.parent_numero);
-      formData.append("parent_relationship", newStudent.parent_relationship);
-      formData.append("parent_is_emergency_contact", newStudent.parent_is_emergency_contact.toString());
-      formData.append("parent_profession", newStudent.parent_profession || "");
-    }
 
     try {
-      const response = await api.post("/api/register-student-parent/", formData, {
+      const response = await api.post("/api/students/add/", formData, {
         headers: { "Content-Type": "multipart/form-data" },
       });
-      onAddStudent(response.data.student);
+      onAddStudent(response.data);
       onClose();
     } catch (err) {
-      // Improved error handling
-      const errorData = err.response?.data?.errors || {};
-      let errorMessage = "Failed to add student.";
-      if (Object.keys(errorData).length > 0) {
-        errorMessage = Object.entries(errorData)
-          .map(([field, errors]) => `${field}: ${Array.isArray(errors) ? errors.join(", ") : errors}`)
-          .join("; ");
-      } else if (err.response?.data?.message) {
-        errorMessage = err.response.data.message;
-      }
-      setError(errorMessage);
+      setError(err.response?.data?.detail || "Failed to add student.");
     }
   };
 
@@ -177,118 +97,43 @@ function AddStudentModal({ isOpen, onClose, onAddStudent, levels }) {
               <label className="block text-sm font-medium text-gray-300 mb-1">Photo</label>
               <div className="flex items-center gap-4">
                 <div className="relative w-24 h-24 bg-[#2a3a4f] rounded-lg overflow-hidden">
-                  <img
-                    src={previewUrl}
-                    alt="Preview"
-                    className="w-full h-full object-cover"
-                    onError={(e) => (e.target.src = "/media/placeholder.svg")}
-                  />
+                  <img src={previewUrl} alt="Preview" className="w-full h-full object-cover" onError={(e) => (e.target.src = "/media/placeholder.svg")} />
                 </div>
-                <button
-                  type="button"
-                  onClick={() => fileInputRef.current.click()}
-                  className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-3 py-2 rounded-lg text-sm"
-                >
+                <button type="button" onClick={() => fileInputRef.current.click()} className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-3 py-2 rounded-lg text-sm">
                   <Upload size={16} /> Upload Photo
                 </button>
-                <input
-                  type="file"
-                  ref={fileInputRef}
-                  onChange={handlePhotoChange}
-                  accept="image/*"
-                  className="hidden"
-                />
+                <input type="file" ref={fileInputRef} onChange={handlePhotoChange} accept="image/*" className="hidden" />
               </div>
             </div>
             <div className="grid grid-cols-2 gap-4 mb-4">
               <div>
                 <label htmlFor="prenom" className="block text-sm font-medium text-gray-300 mb-1">Prénom</label>
-                <input
-                  type="text"
-                  id="prenom"
-                  name="prenom"
-                  value={newStudent.prenom}
-                  onChange={handleInputChange}
-                  required
-                  className="w-full bg-[#273549] border border-gray-700 rounded-lg px-3 py-2 text-white"
-                  placeholder="First Name"
-                />
+                <input type="text" id="prenom" name="prenom" value={newStudent.prenom} onChange={handleInputChange} required className="w-full bg-[#273549] border border-gray-700 rounded-lg px-3 py-2 text-white" placeholder="First Name" />
               </div>
               <div>
                 <label htmlFor="nom" className="block text-sm font-medium text-gray-300 mb-1">Nom</label>
-                <input
-                  type="text"
-                  id="nom"
-                  name="nom"
-                  value={newStudent.nom}
-                  onChange={handleInputChange}
-                  required
-                  className="w-full bg-[#273549] border border-gray-700 rounded-lg px-3 py-2 text-white"
-                  placeholder="Last Name"
-                />
+                <input type="text" id="nom" name="nom" value={newStudent.nom} onChange={handleInputChange} required className="w-full bg-[#273549] border border-gray-700 rounded-lg px-3 py-2 text-white" placeholder="Last Name" />
               </div>
             </div>
             <div className="mb-4">
               <label htmlFor="date_naissance" className="block text-sm font-medium text-gray-300 mb-1">Date de Naissance</label>
-              <input
-                type="date"
-                id="date_naissance"
-                name="date_naissance"
-                value={newStudent.date_naissance}
-                onChange={handleInputChange}
-                required
-                className="w-full bg-[#273549] border border-gray-700 rounded-lg px-3 py-2 text-white"
-              />
+              <input type="date" id="date_naissance" name="date_naissance" value={newStudent.date_naissance} onChange={handleInputChange} className="w-full bg-[#273549] border border-gray-700 rounded-lg px-3 py-2 text-white" />
             </div>
             <div className="mb-4">
               <label htmlFor="adresse" className="block text-sm font-medium text-gray-300 mb-1">Adresse</label>
-              <input
-                type="text"
-                id="adresse"
-                name="adresse"
-                value={newStudent.adresse}
-                onChange={handleInputChange}
-                className="w-full bg-[#273549] border border-gray-700 rounded-lg px-3 py-2 text-white"
-                placeholder="Address"
-              />
+              <input type="text" id="adresse" name="adresse" value={newStudent.adresse} onChange={handleInputChange} className="w-full bg-[#273549] border border-gray-700 rounded-lg px-3 py-2 text-white" placeholder="Address" />
             </div>
             <div className="mb-4">
               <label htmlFor="mail" className="block text-sm font-medium text-gray-300 mb-1">Email</label>
-              <input
-                type="email"
-                id="mail"
-                name="mail"
-                value={newStudent.mail}
-                onChange={handleInputChange}
-                required
-                className="w-full bg-[#273549] border border-gray-700 rounded-lg px-3 py-2 text-white"
-                placeholder="Email"
-              />
+              <input type="email" id="mail" name="mail" value={newStudent.mail} onChange={handleInputChange} required className="w-full bg-[#273549] border border-gray-700 rounded-lg px-3 py-2 text-white" placeholder="Email" />
             </div>
             <div className="mb-4">
               <label htmlFor="numero" className="block text-sm font-medium text-gray-300 mb-1">Numéro</label>
-              <input
-                type="text"
-                id="numero"
-                name="numero"
-                value={newStudent.numero}
-                onChange={handleInputChange}
-                required
-                className="w-full bg-[#273549] border border-gray-700 rounded-lg px-3 py-2 text-white"
-                placeholder="Phone Number"
-              />
+              <input type="text" id="numero" name="numero" value={newStudent.numero} onChange={handleInputChange} required className="w-full bg-[#273549] border border-gray-700 rounded-lg px-3 py-2 text-white" placeholder="Phone Number" />
             </div>
             <div className="mb-6">
               <label htmlFor="level" className="block text-sm font-medium text-gray-300 mb-1">Level</label>
-              <select
-                id="level"
-                name="level"
-                value={newStudent.level}
-                onChange={handleInputChange}
-                required
-                className="w-full bg-[#273549] border border-gray-700 rounded-lg px-3 py-2 text-white"
-              >
-                <option value="">Select a level</option>
+              <select id="level" name="level" value={newStudent.level} onChange={handleInputChange} className="w-full bg-[#273549] border border-gray-700 rounded-lg px-3 py-2 text-white">
                 {levels.map((level) => (
                   <option key={level.id} value={level.id}>{level.level}</option>
                 ))}
@@ -296,186 +141,15 @@ function AddStudentModal({ isOpen, onClose, onAddStudent, levels }) {
             </div>
             <div className="mb-6">
               <label htmlFor="admission_s" className="block text-sm font-medium text-gray-300 mb-1">Admission Status</label>
-              <select
-                id="admission_s"
-                name="admission_s"
-                value={newStudent.admission_s}
-                onChange={handleInputChange}
-                className="w-full bg-[#273549] border border-gray-700 rounded-lg px-3 py-2 text-white"
-              >
+              <select id="admission_s" name="admission_s" value={newStudent.admission_s} onChange={handleInputChange} className="w-full bg-[#273549] border border-gray-700 rounded-lg px-3 py-2 text-white">
                 <option value="att">En Attente</option>
                 <option value="acc">Accepté</option>
                 <option value="ref">Refusé</option>
               </select>
             </div>
-            <h3 className="text-lg font-semibold text-gray-300 mb-4">Parent Information</h3>
-            <div className="mb-4">
-              <label className="block text-sm font-medium text-gray-300 mb-1">Parent Selection</label>
-              <div className="flex items-center gap-4">
-                <label className="flex items-center">
-                  <input
-                    type="radio"
-                    name="parent_selection"
-                    checked={useExistingParent}
-                    onChange={() => setUseExistingParent(true)}
-                    className="mr-2"
-                  />
-                  Use Existing Parent
-                </label>
-                <label className="flex items-center">
-                  <input
-                    type="radio"
-                    name="parent_selection"
-                    checked={!useExistingParent}
-                    onChange={() => setUseExistingParent(false)}
-                    className="mr-2"
-                  />
-                  Add New Parent
-                </label>
-              </div>
-            </div>
-            {useExistingParent ? (
-              <div className="mb-4">
-                <label htmlFor="parent_id" className="block text-sm font-medium text-gray-300 mb-1">Select Parent</label>
-                <select
-                  id="parent_id"
-                  name="parent_id"
-                  value={newStudent.parent_id}
-                  onChange={handleInputChange}
-                  required={useExistingParent}
-                  className="w-full bg-[#273549] border border-gray-700 rounded-lg px-3 py-2 text-white"
-                >
-                  <option value="">Select a parent</option>
-                  {parents.map((parent) => (
-                    <option key={parent.id} value={parent.id}>
-                      {parent.prenom} {parent.nom} ({parent.mail})
-                    </option>
-                  ))}
-                </select>
-              </div>
-            ) : (
-              <>
-                <div className="grid grid-cols-2 gap-4 mb-4">
-                  <div>
-                    <label htmlFor="parent_prenom" className="block text-sm font-medium text-gray-300 mb-1">Parent Prénom</label>
-                    <input
-                      type="text"
-                      id="parent_prenom"
-                      name="parent_prenom"
-                      value={newStudent.parent_prenom}
-                      onChange={handleInputChange}
-                      required={!useExistingParent}
-                      className="w-full bg-[#273549] border border-gray-700 rounded-lg px-3 py-2 text-white"
-                      placeholder="Parent First Name"
-                    />
-                  </div>
-                  <div>
-                    <label htmlFor="parent_nom" className="block text-sm font-medium text-gray-300 mb-1">Parent Nom</label>
-                    <input
-                      type="text"
-                      id="parent_nom"
-                      name="parent_nom"
-                      value={newStudent.parent_nom}
-                      onChange={handleInputChange}
-                      required={!useExistingParent}
-                      className="w-full bg-[#273549] border border-gray-700 rounded-lg px-3 py-2 text-white"
-                      placeholder="Parent Last Name"
-                    />
-                  </div>
-                </div>
-                <div className="mb-4">
-                  <label htmlFor="parent_adresse" className="block text-sm font-medium text-gray-300 mb-1">Parent Adresse</label>
-                  <input
-                    type="text"
-                    id="parent_adresse"
-                    name="parent_adresse"
-                    value={newStudent.parent_adresse}
-                    onChange={handleInputChange}
-                    className="w-full bg-[#273549] border border-gray-700 rounded-lg px-3 py-2 text-white"
-                    placeholder="Parent Address"
-                  />
-                </div>
-                <div className="mb-4">
-                  <label htmlFor="parent_mail" className="block text-sm font-medium text-gray-300 mb-1">Parent Email</label>
-                  <input
-                    type="email"
-                    id="parent_mail"
-                    name="parent_mail"
-                    value={newStudent.parent_mail}
-                    onChange={handleInputChange}
-                    required={!useExistingParent}
-                    className="w-full bg-[#273549] border border-gray-700 rounded-lg px-3 py-2 text-white"
-                    placeholder="Parent Email"
-                  />
-                </div>
-                <div className="mb-4">
-                  <label htmlFor="parent_numero" className="block text-sm font-medium text-gray-300 mb-1">Parent Numéro</label>
-                  <input
-                    type="text"
-                    id="parent_numero"
-                    name="parent_numero"
-                    value={newStudent.parent_numero}
-                    onChange={handleInputChange}
-                    required={!useExistingParent}
-                    className="w-full bg-[#273549] border border-gray-700 rounded-lg px-3 py-2 text-white"
-                    placeholder="Parent Phone Number"
-                  />
-                </div>
-                <div className="mb-4">
-                  <label htmlFor="parent_relationship" className="block text-sm font-medium text-gray-300 mb-1">Parent Relationship</label>
-                  <select
-                    id="parent_relationship"
-                    name="parent_relationship"
-                    value={newStudent.parent_relationship}
-                    onChange={handleInputChange}
-                    required={!useExistingParent}
-                    className="w-full bg-[#273549] border border-gray-700 rounded-lg px-3 py-2 text-white"
-                  >
-                    <option value="Father">Father</option>
-                    <option value="Mother">Mother</option>
-                    <option value="Guardian">Guardian</option>
-                    <option value="Other">Other</option>
-                  </select>
-                </div>
-                <div className="mb-4 flex items-center">
-                  <input
-                    type="checkbox"
-                    id="parent_is_emergency_contact"
-                    name="parent_is_emergency_contact"
-                    checked={newStudent.parent_is_emergency_contact}
-                    onChange={handleInputChange}
-                    className="h-4 w-4 text-blue-600 border-gray-700 rounded bg-[#273549]"
-                  />
-                  <label htmlFor="parent_is_emergency_contact" className="ml-2 text-sm text-gray-300">Emergency Contact</label>
-                </div>
-                <div className="mb-6">
-                  <label htmlFor="parent_profession" className="block text-sm font-medium text-gray-300 mb-1">Parent Profession</label>
-                  <input
-                    type="text"
-                    id="parent_profession"
-                    name="parent_profession"
-                    value={newStudent.parent_profession}
-                    onChange={handleInputChange}
-                    className="w-full bg-[#273549] border border-gray-700 rounded-lg px-3 py-2 text-white"
-                    placeholder="Parent Profession"
-                  />
-                </div>
-              </>
-            )}
             <div className="flex justify-end gap-3 mt-4">
-              <button
-                type="button"
-                onClick={onClose}
-                className="px-4 py-2 border border-gray-600 rounded-lg text-gray-300 hover:bg-gray-700"
-              >
-                Cancel
-              </button>
-              <button
-                type="submit"
-                className="px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded-lg text-white"
-              >
-                Add Student
-              </button>
+              <button type="button" onClick={onClose} className="px-4 py-2 border border-gray-600 rounded-lg text-gray-300 hover:bg-gray-700">Cancel</button>
+              <button type="submit" className="px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded-lg text-white">Add Student</button>
             </div>
           </form>
         </div>
@@ -484,7 +158,7 @@ function AddStudentModal({ isOpen, onClose, onAddStudent, levels }) {
   );
 }
 
-// Edit Student Modal Component (unchanged)
+// Edit Student Modal Component
 function EditStudentModal({ isOpen, onClose, onEditStudent, student, levels }) {
   const [editedStudent, setEditedStudent] = useState({
     nom: student.nom || "",
@@ -637,7 +311,7 @@ function EditStudentModal({ isOpen, onClose, onEditStudent, student, levels }) {
   );
 }
 
-// 3D Student Card Component (optimized)
+// 3D Student Card Component
 function StudentCard({ student, index, totalStudents, onDelete, onEdit, levels }) {
   const levelName = levels.find((l) => l.id === student.level)?.level || "Unknown";
   return (
@@ -659,7 +333,7 @@ function StudentCard({ student, index, totalStudents, onDelete, onEdit, levels }
           <img src={student.photo || "/media/placeholder.svg"} alt={`${student.prenom} ${student.nom}`} className="w-full h-full object-cover" onError={(e) => (e.target.src = "/media/placeholder.svg")} />
         </div>
       </Html>
-      <Html position={[0.5, 0, 0.1]} transform scale={0.4}>
+      <Html position={[0.5, 0, 0.1]} transform scale={0.4} rotation={[0, 0, 0]}>
         <div className="w-[400px] text-white font-medium relative">
           <div className="absolute inset-0 bg-gradient-to-r from-blue-500/10 to-purple-500/10 blur-xl" />
           <div className="relative">
@@ -675,10 +349,10 @@ function StudentCard({ student, index, totalStudents, onDelete, onEdit, levels }
               </span>
             </div>
             <div className="flex gap-3 mt-4">
-              <button onClick={() => onEdit(student)} className="p-2 bg-green-500/20 border border-green-500/30 rounded-full hover:bg-green-500/30 transition-colors">
+              <button onClick={(e) => { e.stopPropagation(); onEdit(student); }} className="p-2 bg-green-500/20 border border-green-500/30 rounded-full hover:bg-green-500/30 transition-colors">
                 <Edit size={16} />
               </button>
-              <button onClick={() => onDelete(student.id)} className="p-2 bg-red-500/20 border border-red-500/30 rounded-full hover:bg-red-500/30 transition-colors">
+              <button onClick={(e) => { e.stopPropagation(); onDelete(student.id); }} className="p-2 bg-red-500/20 border border-red-500/30 rounded-full hover:bg-red-500/30 transition-colors">
                 <Trash2 size={16} />
               </button>
             </div>
@@ -692,7 +366,7 @@ function StudentCard({ student, index, totalStudents, onDelete, onEdit, levels }
   );
 }
 
-// Scene setup component (unchanged)
+// Scene setup component
 function StudentScene({ students, currentPage, studentsPerPage, onDelete, onEdit, levels }) {
   return (
     <Canvas shadows>
@@ -702,29 +376,17 @@ function StudentScene({ students, currentPage, studentsPerPage, onDelete, onEdit
       <pointLight position={[-10, -10, -10]} color="#3b82f6" intensity={0.5} />
       <Environment preset="night" />
       {students.map((student, index) => (
-        <StudentCard
-          key={student.id}
-          student={student}
-          index={index + (currentPage - 1) * studentsPerPage}
-          totalStudents={students.length}
-          onDelete={onDelete}
-          onEdit={onEdit}
-          levels={levels}
-        />
+        <StudentCard key={student.id} student={student} index={index + (currentPage - 1) * studentsPerPage} totalStudents={students.length} onDelete={onDelete} onEdit={onEdit} levels={levels} />
       ))}
       <OrbitControls enableZoom={false} enablePan={false} minPolarAngle={Math.PI / 2.5} maxPolarAngle={Math.PI / 2.5} rotateSpeed={0.5} />
     </Canvas>
   );
 }
 
-// Floating Action Button Component (unchanged)
+// Floating Action Button Component
 function FloatingActionButton({ onClick }) {
   return (
-    <button
-      onClick={onClick}
-      className="fixed bottom-8 right-8 w-14 h-14 bg-blue-600 hover:bg-blue-700 rounded-full flex items-center justify-center shadow-lg z-10 transition-transform hover:scale-110"
-      aria-label="Add student"
-    >
+    <button onClick={onClick} className="fixed bottom-8 right-8 w-14 h-14 bg-blue-600 hover:bg-blue-700 rounded-full flex items-center justify-center shadow-lg z-10 transition-transform hover:scale-110" aria-label="Add student">
       <Plus size={24} />
     </button>
   );
@@ -734,7 +396,6 @@ function FloatingActionButton({ onClick }) {
 export default function StudentList() {
   const PLACEHOLDER_IMAGE = "/media/placeholder.svg";
   const [currentPage, setCurrentPage] = useState(1);
-  const [tablePage, setTablePage] = useState(1);
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedLevel, setSelectedLevel] = useState("All");
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
@@ -744,12 +405,9 @@ export default function StudentList() {
   const [studentToEdit, setStudentToEdit] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const navigate = useNavigate();
-  const debouncedSearchQuery = useDebounce(searchQuery, 300);
-  const tableRowsPerPage = 10;
+  const navigate = useNavigate(); // Replaced useRouter with useNavigate
 
   useEffect(() => {
-    console.log("Students count:", students.length, "Levels count:", levels.length); // Debug data size
     const fetchData = async () => {
       try {
         const [levelsResponse, studentsResponse] = await Promise.all([
@@ -767,202 +425,58 @@ export default function StudentList() {
     fetchData();
   }, []);
 
-  const handleAddStudent = useCallback((newStudent) => {
+  const handleAddStudent = (newStudent) => {
     setStudents((prev) => [...prev, newStudent]);
     setIsAddModalOpen(false);
-  }, []);
+  };
 
-  const handleEditStudent = useCallback((updatedStudent) => {
+  const handleEditStudent = (updatedStudent) => {
     setStudents((prev) => prev.map((s) => (s.id === updatedStudent.id ? updatedStudent : s)));
     setIsEditModalOpen(false);
     setStudentToEdit(null);
-  }, []);
+  };
 
-  const handleDelete = useCallback(async (studentId) => {
+  const handleDelete = async (studentId) => {
     try {
       await api.delete(`/api/students/delete/${studentId}/`);
       setStudents((prev) => prev.filter((s) => s.id !== studentId));
     } catch (err) {
       setError(err.response?.data?.detail || "Failed to delete student.");
     }
-  }, []);
+  };
 
-  const openEditModal = useCallback((student) => {
+  const openEditModal = (student) => {
     setStudentToEdit({ ...student });
     setIsEditModalOpen(true);
-  }, []);
+  };
 
-  const filteredStudents = useMemo(() => {
-    console.log("Filtering students..."); // Debug filtering performance
-    return students.filter((student) => {
-      const matchesSearch =
-        debouncedSearchQuery === "" ||
-        student.nom.toLowerCase().includes(debouncedSearchQuery.toLowerCase()) ||
-        student.prenom.toLowerCase().includes(debouncedSearchQuery.toLowerCase()) ||
-        student.id.toString().includes(debouncedSearchQuery);
-      const matchesLevel = selectedLevel === "All" || student.level === parseInt(selectedLevel);
-      return matchesSearch && matchesLevel;
-    });
-  }, [students, debouncedSearchQuery, selectedLevel]);
+  const filteredStudents = students.filter((student) => {
+    const matchesSearch =
+      searchQuery === "" ||
+      student.nom.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      student.prenom.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      student.id.toString().includes(searchQuery);
+    const matchesLevel = selectedLevel === "All" || student.level === parseInt(selectedLevel);
+    return matchesSearch && matchesLevel;
+  });
 
   const studentsPerPage = 1;
   const totalPages = Math.ceil(filteredStudents.length / studentsPerPage);
-  const currentStudents = filteredStudents.slice(
-    (currentPage - 1) * studentsPerPage,
-    currentPage * studentsPerPage
-  );
+  const currentStudents = filteredStudents.slice((currentPage - 1) * studentsPerPage, currentPage * studentsPerPage);
 
-  const totalTablePages = Math.ceil(filteredStudents.length / tableRowsPerPage);
-  const currentTableStudents = filteredStudents.slice(
-    (tablePage - 1) * tableRowsPerPage,
-    tablePage * tableRowsPerPage
-  );
-
-  const nextPage = useCallback(() => {
+  const nextPage = () => {
     if (currentPage < totalPages) setCurrentPage(currentPage + 1);
-  }, [currentPage, totalPages]);
+  };
 
-  const prevPage = useCallback(() => {
+  const prevPage = () => {
     if (currentPage > 1) setCurrentPage(currentPage - 1);
-  }, [currentPage]);
+  };
 
-  const nextTablePage = useCallback(() => {
-    if (tablePage < totalTablePages) setTablePage(tablePage + 1);
-  }, [tablePage, totalTablePages]);
+  const levelOptions = [{ id: "All", level: "All Levels" }, ...levels];
 
-  const prevTablePage = useCallback(() => {
-    if (tablePage > 1) setTablePage(tablePage - 1);
-  }, [tablePage]);
-
-  const levelOptions = useMemo(() => [{ id: "All", level: "All Levels" }, ...levels], [levels]);
-
-  const handleViewDetails = useCallback((studentId) => {
-    navigate(`/admin/studentdetail?id=${studentId}`);
-  }, [navigate]);
-
-  const exportToCSV = useCallback(async () => {
-    if (filteredStudents.length === 0) {
-      setError("No students to export.");
-      setTimeout(() => setError(null), 3000);
-      return;
-    }
-
-    try {
-      const levelValue = selectedLevel === "All" ? "All" : levels.find((l) => l.id === parseInt(selectedLevel))?.level || "All";
-      const response = await api.get("/api/export/students/", {
-        params: {
-          level: levelValue,
-          search: debouncedSearchQuery,
-        },
-        responseType: "blob",
-      });
-
-      const url = window.URL.createObjectURL(new Blob([response.data], { type: "text/csv;charset=utf-8;" }));
-      const link = document.createElement("a");
-      link.href = url;
-      link.setAttribute(
-        "download",
-        `students_level_${levelValue}_${new Date().toISOString().split("T")[0]}.csv`
-      );
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      window.URL.revokeObjectURL(url);
-
-      setError("Students exported successfully!");
-      setTimeout(() => setError(null), 2000);
-    } catch (error) {
-      console.error("Export error:", error);
-      setError(`Failed to export students: ${error.response?.data?.error || error.message}`);
-      setTimeout(() => setError(null), 3000);
-    }
-  }, [filteredStudents, selectedLevel, debouncedSearchQuery, levels]);
-
-  const printStudentList = useCallback(() => {
-    if (filteredStudents.length === 0) {
-      setError("No students to print.");
-      setTimeout(() => setError(null), 3000);
-      return;
-    }
-
-    const printWindow = window.open("", "_blank");
-    const levelName = selectedLevel === "All" ? "All Levels" : levels.find((l) => l.id === parseInt(selectedLevel))?.level || "Unknown";
-
-    // Use a template to avoid heavy string concatenation
-    const rows = filteredStudents
-      .map(
-        (student) => `
-          <tr>
-            <td>${student.id}</td>
-            <td>${
-              student.photo
-                ? `<img src="${student.photo}" alt="${student.prenom} ${student.nom}" onerror="this.style.display='none';this.nextSibling.style.display='inline-block';" /><span class="no-photo" style="display:none;"></span>`
-                : `<span class="no-photo"></span>`
-            }</td>
-            <td>${student.nom}</td>
-            <td>${student.prenom}</td>
-            <td>${levels.find((l) => l.id === student.level)?.level || "Unknown"}</td>
-            <td>${student.mail}</td>
-            <td>${student.date_naissance || "N/A"}</td>
-            <td>${student.numero}</td>
-            <td>${
-              student.admission_s === "att" ? "En Attente" : student.admission_s === "acc" ? "Accepté" : "Refusé"
-            }</td>
-            <td>${student.adresse || "N/A"}</td>
-          </tr>
-        `
-      )
-      .join("");
-
-    printWindow.document.write(`
-      <html>
-        <head>
-          <title>Student List - ${levelName}</title>
-          <style>
-            body { font-family: Arial, sans-serif; margin: 20px; color: #000; }
-            h1 { text-align: center; font-size: 24px; margin-bottom: 20px; }
-            table { width: 100%; border-collapse: collapse; margin-top: 20px; }
-            th, td { border: 1px solid #000; padding: 8px; text-align: left; font-size: 14px; }
-            th { background-color: #f2f2f2; font-weight: bold; text-transform: uppercase; }
-            img { width: 40px; height: 40px; border-radius: 50%; object-fit: cover; }
-            .no-photo { width: 40px; height: 40px; background-color: #ccc; border-radius: 50%; display: inline-block; }
-            @media print {
-              body { margin: 0; padding: 10mm; }
-              table { page-break-inside: auto; }
-              tr { page-break-inside: avoid; page-break-after: auto; }
-            }
-          </style>
-        </head>
-        <body>
-          <h1>Student List - ${levelName}</h1>
-          <table>
-            <thead>
-              <tr>
-                <th>ID</th>
-                <th>Photo</th>
-                <th>Nom</th>
-                <th>Prénom</th>
-                <th>Level</th>
-                <th>Email</th>
-                <th>Date de Naissance</th>
-                <th>Numéro</th>
-                <th>Admission</th>
-                <th>Adresse</th>
-              </tr>
-            </thead>
-            <tbody>${rows}</tbody>
-          </table>
-        </body>
-      </html>
-    `);
-
-    printWindow.document.close();
-    setTimeout(() => {
-      printWindow.focus();
-      printWindow.print();
-      printWindow.close();
-    }, 500);
-  }, [filteredStudents, selectedLevel, levels]);
+  const handleViewDetails = (studentId) => {
+    navigate(`/admin/studentdetail?id=${studentId}`); // Use navigate instead of router.push
+  };
 
   if (loading) return <div className="min-h-screen bg-[#111827] text-white p-6">Loading...</div>;
 
@@ -985,18 +499,9 @@ export default function StudentList() {
             <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
               <Search className="h-4 w-4 text-gray-400" />
             </div>
-            <input
-              type="text"
-              className="bg-[#273549] pl-10 pr-4 py-2 rounded-lg text-sm w-64 focus:outline-none focus:ring-2 focus:ring-blue-500"
-              placeholder="Search students..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-            />
+            <input type="text" className="bg-[#273549] pl-10 pr-4 py-2 rounded-lg text-sm w-64 focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="Search students..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} />
           </div>
-          <button
-            className="bg-blue-600 p-2 rounded-full hover:bg-blue-700"
-            onClick={() => setIsAddModalOpen(true)}
-          >
+          <button className="bg-blue-600 p-2 rounded-full hover:bg-blue-700" onClick={() => setIsAddModalOpen(true)}>
             <Plus className="h-5 w-5" />
           </button>
           <div className="h-8 w-8 bg-blue-500 rounded-full flex items-center justify-center">
@@ -1006,32 +511,11 @@ export default function StudentList() {
       </header>
 
       <main className="p-6" style={{ overflowY: "auto" }}>
-        {error && (
-          <div
-            className={`p-4 rounded-lg mb-6 flex items-center gap-2 ${
-              error.includes("exported successfully")
-                ? "bg-green-600/20 border-green-600/30 text-green-400"
-                : "bg-red-600/20 border-red-600/30 text-red-400"
-            }`}
-          >
-            {error.includes("exported successfully") ? (
-              <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-              </svg>
-            ) : (
-              <X className="h-5 w-5" />
-            )}
-            <span>{error}</span>
-          </div>
-        )}
+        {error && <div className="text-red-400 mb-4">{error}</div>}
         <div className="flex justify-between items-center mb-6">
           <h2 className="text-2xl font-bold">Student Lists</h2>
           <div className="flex gap-3">
-            <select
-              className="bg-[#1e293b] border border-gray-700 rounded-lg px-3 py-2 text-sm"
-              value={selectedLevel}
-              onChange={(e) => setSelectedLevel(e.target.value)}
-            >
+            <select className="bg-[#1e293b] border border-gray-700 rounded-lg px-3 py-2 text-sm" value={selectedLevel} onChange={(e) => setSelectedLevel(e.target.value)}>
               {levelOptions.map((level) => (
                 <option key={level.id} value={level.id}>{level.level}</option>
               ))}
@@ -1039,16 +523,7 @@ export default function StudentList() {
             <button className="bg-[#1e293b] border border-gray-700 rounded-lg px-3 py-2 text-sm flex items-center gap-2">
               <Filter className="h-4 w-4" /> <span>Filter</span>
             </button>
-            <button
-              className="bg-blue-600 hover:bg-blue-700 rounded-lg px-3 py-2 text-sm flex items-center gap-2"
-              onClick={printStudentList}
-            >
-              <Printer className="h-4 w-4" /> <span>Print</span>
-            </button>
-            <button
-              className="bg-blue-600 hover:bg-blue-700 rounded-lg px-3 py-2 text-sm flex items-center gap-2"
-              onClick={exportToCSV}
-            >
+            <button className="bg-[#1e293b] border border-gray-700 rounded-lg px-3 py-2 text-sm flex items-center gap-2">
               <Download className="h-4 w-4" /> <span>Export</span>
             </button>
           </div>
@@ -1056,14 +531,7 @@ export default function StudentList() {
 
         {!isAddModalOpen && !isEditModalOpen && currentStudents.length > 0 && (
           <div className="bg-[#1e293b] rounded-xl p-4 mb-6 h-[400px]">
-            <StudentScene
-              students={currentStudents}
-              currentPage={currentPage}
-              studentsPerPage={studentsPerPage}
-              onDelete={handleDelete}
-              onEdit={openEditModal}
-              levels={levels}
-            />
+            <StudentScene students={currentStudents} currentPage={currentPage} studentsPerPage={studentsPerPage} onDelete={handleDelete} onEdit={openEditModal} levels={levels} />
           </div>
         )}
         {!isAddModalOpen && !isEditModalOpen && currentStudents.length === 0 && (
@@ -1074,27 +542,14 @@ export default function StudentList() {
 
         <div className="flex justify-between items-center">
           <div className="text-sm text-gray-400">
-            Showing {currentStudents.length > 0 ? (currentPage - 1) * studentsPerPage + 1 : 0} to{" "}
-            {Math.min(currentPage * studentsPerPage, filteredStudents.length)} of {filteredStudents.length} students
+            Showing {currentStudents.length > 0 ? (currentPage - 1) * studentsPerPage + 1 : 0} to {Math.min(currentPage * studentsPerPage, filteredStudents.length)} of {filteredStudents.length} students
           </div>
           <div className="flex gap-2">
-            <button
-              className={`p-2 rounded-lg ${currentPage === 1 ? "bg-gray-800 text-gray-500" : "bg-blue-600 hover:bg-blue-700"}`}
-              onClick={prevPage}
-              disabled={currentPage === 1}
-            >
+            <button className={`p-2 rounded-lg ${currentPage === 1 ? "bg-gray-800 text-gray-500" : "bg-blue-600 hover:bg-blue-700"}`} onClick={prevPage} disabled={currentPage === 1}>
               <ChevronLeft className="h-5 w-5" />
             </button>
-            <div className="bg-[#1e293b] px-4 py-2 rounded-lg flex items-center">
-              {currentPage} / {totalPages || 1}
-            </div>
-            <button
-              className={`p-2 rounded-lg ${
-                currentPage === totalPages || totalPages === 0 ? "bg-gray-800 text-gray-500" : "bg-blue-600 hover:bg-blue-700"
-              }`}
-              onClick={nextPage}
-              disabled={currentPage === totalPages || totalPages === 0}
-            >
+            <div className="bg-[#1e293b] px-4 py-2 rounded-lg flex items-center">{currentPage} / {totalPages || 1}</div>
+            <button className={`p-2 rounded-lg ${currentPage === totalPages || totalPages === 0 ? "bg-gray-800 text-gray-500" : "bg-blue-600 hover:bg-blue-700"}`} onClick={nextPage} disabled={currentPage === totalPages || totalPages === 0}>
               <ChevronRight className="h-5 w-5" />
             </button>
           </div>
@@ -1120,66 +575,17 @@ export default function StudentList() {
               </tr>
             </thead>
             <tbody>
-              {/* Optional: Virtualized table (uncomment to use react-window)
-              <List
-                height={400}
-                itemCount={filteredStudents.length}
-                itemSize={60}
-                width="100%"
-              >
-                {({ index, style }) => {
-                  const student = filteredStudents[index];
-                  const levelName = levels.find((l) => l.id === student.level)?.level || "Unknown";
-                  return (
-                    <tr key={student.id} style={style} className="border-b border-gray-800 hover:bg-gray-800">
-                      <td className="px-6 py-4 whitespace-nowrap text-sm">{student.id}</td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <img src={student.photo || PLACEHOLDER_IMAGE} alt={`${student.prenom} ${student.nom}`} className="h-10 w-10 rounded-full object-cover" onError={(e) => (e.target.src = PLACEHOLDER_IMAGE)} />
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm">{student.nom}</td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm">{student.prenom}</td>
-                      <td className="px-6 py-4 whitespace-nowrap"><span className="px-2 py-1 bg-purple-500 rounded-md text-xs">{levelName}</span></td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm">{student.mail}</td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm">{student.date_naissance || "N/A"}</td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm">{student.numero}</td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm">{student.admission_s}</td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm">{student.adresse}</td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm">
-                        <div className="flex gap-2">
-                          <button onClick={() => handleViewDetails(student.id)} className="p-1 bg-blue-500 rounded-full hover:bg-blue-600">
-                            <Eye size={16} />
-                          </button>
-                          <button onClick={() => openEditModal(student)} className="p-1 bg-green-500 rounded-full hover:bg-green-600">
-                            <Edit size={16} />
-                          </button>
-                          <button onClick={() => handleDelete(student.id)} className="p-1 bg-red-500 rounded-full hover:bg-red-600">
-                            <Trash2 size={16} />
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  );
-                }}
-              </List>
-              */}
-              {currentTableStudents.map((student) => {
+              {filteredStudents.map((student) => {
                 const levelName = levels.find((l) => l.id === student.level)?.level || "Unknown";
                 return (
                   <tr key={student.id} className="border-b border-gray-800 hover:bg-gray-800">
                     <td className="px-6 py-4 whitespace-nowrap text-sm">{student.id}</td>
                     <td className="px-6 py-4 whitespace-nowrap">
-                      <img
-                        src={student.photo || PLACEHOLDER_IMAGE}
-                        alt={`${student.prenom} ${student.nom}`}
-                        className="h-10 w-10 rounded-full object-cover"
-                        onError={(e) => (e.target.src = PLACEHOLDER_IMAGE)}
-                      />
+                      <img src={student.photo || "/media/placeholder.svg"} alt={`${student.prenom} ${student.nom}`} className="h-10 w-10 rounded-full object-cover" onError={(e) => (e.target.src = "/media/placeholder.svg")} />
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm">{student.nom}</td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm">{student.prenom}</td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <span className="px-2 py-1 bg-purple-500 rounded-md text-xs">{levelName}</span>
-                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap"><span className="px-2 py-1 bg-purple-500 rounded-md text-xs">{levelName}</span></td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm">{student.mail}</td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm">{student.date_naissance || "N/A"}</td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm">{student.numero}</td>
@@ -1187,22 +593,13 @@ export default function StudentList() {
                     <td className="px-6 py-4 whitespace-nowrap text-sm">{student.adresse}</td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm">
                       <div className="flex gap-2">
-                        <button
-                          onClick={() => handleViewDetails(student.id)}
-                          className="p-1 bg-blue-500 rounded-full hover:bg-blue-600"
-                        >
+                        <button onClick={() => handleViewDetails(student.id)} className="p-1 bg-blue-500 rounded-full hover:bg-blue-600">
                           <Eye size={16} />
                         </button>
-                        <button
-                          onClick={() => openEditModal(student)}
-                          className="p-1 bg-green-500 rounded-full hover:bg-green-600"
-                        >
+                        <button onClick={(e) => { e.stopPropagation(); openEditModal(student); }} className="p-1 bg-green-500 rounded-full hover:bg-green-600">
                           <Edit size={16} />
                         </button>
-                        <button
-                          onClick={() => handleDelete(student.id)}
-                          className="p-1 bg-red-500 rounded-full hover:bg-red-600"
-                        >
+                        <button onClick={(e) => { e.stopPropagation(); handleDelete(student.id); }} className="p-1 bg-red-500 rounded-full hover:bg-red-600">
                           <Trash2 size={16} />
                         </button>
                       </div>
@@ -1213,49 +610,11 @@ export default function StudentList() {
             </tbody>
           </table>
         </div>
-        <div className="flex justify-between items-center mt-4">
-          <div className="text-sm text-gray-400">
-            Showing {currentTableStudents.length > 0 ? (tablePage - 1) * tableRowsPerPage + 1 : 0} to{" "}
-            {Math.min(tablePage * tableRowsPerPage, filteredStudents.length)} of {filteredStudents.length} students
-          </div>
-          <div className="flex gap-2">
-            <button
-              className={`p-2 rounded-lg ${tablePage === 1 ? "bg-gray-800 text-gray-500" : "bg-blue-600 hover:bg-blue-700"}`}
-              onClick={prevTablePage}
-              disabled={tablePage === 1}
-            >
-              <ChevronLeft className="h-5 w-5" />
-            </button>
-            <div className="bg-[#1e293b] px-4 py-2 rounded-lg flex items-center">
-              {tablePage} / {totalTablePages || 1}
-            </div>
-            <button
-              className={`p-2 rounded-lg ${
-                tablePage === totalTablePages || totalTablePages === 0 ? "bg-gray-800 text-gray-500" : "bg-blue-600 hover:bg-blue-700"
-              }`}
-              onClick={nextTablePage}
-              disabled={tablePage === totalTablePages || totalTablePages === 0}
-            >
-              <ChevronRight className="h-5 w-5" />
-            </button>
-          </div>
-        </div>
       </div>
 
       <FloatingActionButton onClick={() => setIsAddModalOpen(true)} />
-      <AddStudentModal
-        isOpen={isAddModalOpen}
-        onClose={() => setIsAddModalOpen(false)}
-        onAddStudent={handleAddStudent}
-        levels={levels}
-      />
-      <EditStudentModal
-        isOpen={isEditModalOpen}
-        onClose={() => setIsEditModalOpen(false)}
-        onEditStudent={handleEditStudent}
-        student={studentToEdit || {}}
-        levels={levels}
-      />
+      <AddStudentModal isOpen={isAddModalOpen} onClose={() => setIsAddModalOpen(false)} onAddStudent={handleAddStudent} levels={levels} />
+      <EditStudentModal isOpen={isEditModalOpen} onClose={() => setIsEditModalOpen(false)} onEditStudent={handleEditStudent} student={studentToEdit || {}} levels={levels} />
     </div>
   );
 }

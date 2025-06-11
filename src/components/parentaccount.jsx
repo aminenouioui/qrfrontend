@@ -53,6 +53,34 @@ const CreateModal = ({ isOpen, onClose, parents, onCreate, selectedParent, setSe
               </select>
             </div>
             <div>
+              <label className="block text-sm font-medium text-slate-300 mb-1">Password (optional)</label>
+              <div className="relative">
+                <input
+                  type="text"
+                  value={formData.password}
+                  onChange={(e) => setFormData((prev) => ({ ...prev, password: e.target.value }))}
+                  className="w-full px-4 py-2 pr-24 rounded-lg bg-slate-700 border border-slate-600 text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  placeholder="Enter a password or leave blank to auto-generate"
+                  disabled={isLoading}
+                />
+                <button
+                  type="button"
+                  onClick={() => {
+                    const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*";
+                    let password = "";
+                    for (let i = 0; i < 12; i++) {
+                      password += chars.charAt(Math.floor(Math.random() * chars.length));
+                    }
+                    setFormData((prev) => ({ ...prev, password }));
+                  }}
+                  className="absolute right-3 top-1/2 transform -translate-y-1/2 text-xs bg-slate-600 hover:bg-slate-500 text-white px-2 py-1 rounded"
+                  disabled={isLoading}
+                >
+                  Generate
+                </button>
+              </div>
+            </div>
+            <div>
               <label className="block text-sm font-medium text-slate-300 mb-1">Full Name</label>
               <input
                 type="text"
@@ -328,7 +356,9 @@ function ParentAccountManagement() {
     setIsLoading(true);
     try {
       console.log("Creating account for parent:", selectedParent);
-      const response = await api.post(`/create-parent-account/${selectedParent}/`);
+      const response = await api.post(`/api/parent-accounts/add/${selectedParent}/`, {
+        password: formData.password || undefined, // Send password if provided, else let backend generate
+      });
       console.log("Create account response:", response.data);
       await fetchData();
       setShowCreateModal(false);
@@ -339,8 +369,11 @@ function ParentAccountManagement() {
       setFormData({ name: "", email: "", username: "", password: "", status: "Active" });
       setSelectedParent("");
     } catch (err) {
-      console.error("Create account error:", err);
-      showNotification(err.response?.data?.error || "Failed to create account", "error");
+      console.error("Create account error:", err.response?.data, err.response?.status);
+      showNotification(
+        err.response?.data?.error || `Failed to create account: ${err.message}`,
+        "error"
+      );
     } finally {
       setIsLoading(false);
     }

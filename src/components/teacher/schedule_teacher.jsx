@@ -20,6 +20,7 @@ export default function ClassSchedule() {
   const [isAddingClass, setIsAddingClass] = useState(false);
   const [isEditingClass, setIsEditingClass] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [selectedClass, setSelectedClass] = useState(null);
   const [error, setError] = useState(null);
 
   const [formData, setFormData] = useState({
@@ -38,7 +39,17 @@ export default function ClassSchedule() {
   const [classrooms, setClassrooms] = useState([]);
 
   const weekdays = ["MON", "TUE", "WED", "THU", "FRI"];
-  const timeSlots = ["08:00:00", "10:00:00", "12:00:00", "14:00:00", "16:00:00"];
+  const timeSlots = [
+    "08:00:00",
+    "09:00:00",
+    "10:00:00",
+    "11:00:00",
+    "12:00:00",
+    "13:00:00",
+    "14:00:00",
+    "15:00:00",
+    "16:00:00",
+  ];
 
   useEffect(() => {
     const fetchData = async () => {
@@ -110,8 +121,11 @@ export default function ClassSchedule() {
 
   const normalizeTime = (time) => {
     if (!time) return "00:00:00";
-    const [hours, minutes] = time.split(":").map((s) => s.padStart(2, "0"));
-    return `${hours}:${minutes}:00`;
+    const parts = time.split(":");
+    const hours = parts[0].padStart(2, "0");
+    const minutes = parts[1]?.padStart(2, "0") || "00";
+    const seconds = parts[2]?.padStart(2, "0") || "00";
+    return `${hours}:${minutes}:${seconds}`;
   };
 
   const isTimeOverlap = (start, end, day, excludeId = null) => {
@@ -130,7 +144,20 @@ export default function ClassSchedule() {
   };
 
   const getClassForSlot = (day, time) => {
-    return schedules.find((c) => c.day === day && normalizeTime(c.start_time) === time);
+    const slotStart = new Date(`1970-01-01T${time}`);
+    const slotEnd = new Date(`1970-01-01T${time}`);
+    slotEnd.setHours(slotEnd.getHours() + 2);
+
+    return schedules.find((c) => {
+      if (c.day !== day) return false;
+      const scheduleStart = new Date(`1970-01-01T${normalizeTime(c.start_time)}`);
+      const scheduleEnd = new Date(`1970-01-01T${normalizeTime(c.end_time)}`);
+      return (
+        (scheduleStart >= slotStart && scheduleStart < slotEnd) ||
+        (scheduleEnd > slotStart && scheduleEnd <= slotEnd) ||
+        (scheduleStart <= slotStart && scheduleEnd >= slotEnd)
+      );
+    });
   };
 
   const handleInputChange = (e) => {
@@ -192,7 +219,7 @@ export default function ClassSchedule() {
     const end = new Date(`1970-01-01T${formData.end_time}`);
     if (end <= start) return "End time must be later than start time.";
     if (isTimeOverlap(formData.start_time, formData.end_time, formData.day, formData.id)) {
-      return "Time slot conflicts with an existing schedule for this teacher.";
+      return "Time slot conflicts with an existing schedule.";
     }
     return null;
   };
@@ -205,6 +232,7 @@ export default function ClassSchedule() {
     }
     try {
       const response = await api.post("/api/schedules/add/", formData);
+      console.log("New schedule:", response.data);
       setSchedules((prev) => [...prev, response.data]);
       setIsAddingClass(false);
       resetForm();
@@ -244,6 +272,11 @@ export default function ClassSchedule() {
   };
 
   const handleDeleteClass = async () => {
+    if (!selectedClass?.id) {
+      setError("No schedule selected for deletion.");
+      setShowDeleteConfirm(false);
+      return;
+    }
     try {
       await api.delete(`/api/schedules/delete/${selectedClass.id}/`);
       setSchedules((prev) => prev.filter((c) => c.id !== selectedClass.id));
@@ -251,11 +284,12 @@ export default function ClassSchedule() {
       setSelectedClass(null);
       setError(null);
     } catch (error) {
-      setError(
-        `Failed to delete: ${
-          error.response?.data?.detail || error.message
-        }`
-      );
+      const errorMsg =
+        error.response?.data?.detail ||
+        error.response?.data?.error ||
+        error.message ||
+        "Unknown error occurred";
+      setError(`Failed to delete schedule: ${errorMsg}`);
     }
   };
 
@@ -288,8 +322,14 @@ export default function ClassSchedule() {
   const formatDate = (date) => date.toLocaleDateString("en-US", { month: "short", day: "numeric" });
 
   return (
-    <div className="min-h-screen bg-[#111827] text-white">
-      <header className="bg-[#1e293b] p-4">
+    <div className="bg-[#111827] text-white min-h-screen">
+      <style jsx global>{`
+        html, body {
+          overflow-y: auto;
+          scroll-behavior: smooth;
+        }
+      `}</style>
+      <header className="bg-[#1e293b] p-4 sticky top-0 z-10">
         <div className="container mx-auto">
           <div className="flex items-center gap-3">
             <button
@@ -315,12 +355,12 @@ export default function ClassSchedule() {
         )}
 
         <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
-          <div className="lg:col-span-1 overflow-y-auto">
-            <div className="bg-[#1e293b] rounded-xl overflow-hidden mb-6">
+          <div className="lg:col-span-1 flex flex-col">
+            <div className="bg-[#1e293b] rounded-xl overflow-hidden mb-6 flex-shrink-0">
               <div className="p-4 border-b border-gray-800">
                 <h3 className="font-medium">Select Teacher</h3>
               </div>
-              <div className="max-h-[400px] overflow-y-auto">
+              <div className="max-h-64 overflow-y-auto">
                 {teachers.map((teacher) => (
                   <div
                     key={teacher.id}
@@ -337,7 +377,7 @@ export default function ClassSchedule() {
             </div>
 
             {(isAddingClass || isEditingClass) && (
-              <div className="bg-[#1e293b] rounded-xl p-4">
+              <div className="bg-[#1e293b] rounded-xl p-6 flex-grow overflow-y-auto">
                 <h3 className="text-lg font-medium mb-4">
                   {isAddingClass ? "Add New Class" : "Edit Class"}
                 </h3>
@@ -450,14 +490,14 @@ export default function ClassSchedule() {
             )}
 
             {showDeleteConfirm && (
-              <div className="bg-[#1e293b] rounded-xl p-4 mt-6">
+              <div className="bg-[#1e293b] rounded-xl p-4 mt-6 flex-shrink-0">
                 <div className="flex items-center gap-2 text-red-400 mb-4">
                   <AlertCircle className="h-5 w-5" />
                   <h3 className="text-lg font-medium">Confirm Deletion</h3>
                 </div>
                 <p className="text-sm text-gray-400 mb-4">
-                  Are you sure you want to delete "{getSubject(selectedClass.subject).nom}" on{" "}
-                  {selectedClass.day} at {selectedClass.start_time.slice(0, 5)}?
+                  Are you sure you want to delete "{getSubject(selectedClass?.subject)?.nom || "Unknown"}" on{" "}
+                  {selectedClass?.day || ""} at {selectedClass?.start_time?.slice(0, 5) || ""}?
                 </p>
                 <div className="flex gap-2">
                   <button
@@ -504,7 +544,7 @@ export default function ClassSchedule() {
                   </div>
                 ) : (
                   <div className="grid grid-cols-6 gap-2">
-                    <div className="col-span-1">
+                    <div className="col-span-1 sticky left-0 bg-[#1e293b] z-10">
                       <div className="h-12"></div>
                       {timeSlots.map((time) => (
                         <div
@@ -564,7 +604,7 @@ export default function ClassSchedule() {
                                   </div>
                                 </div>
                               ) : (
-                                <div className="h-full flex items-center justify-center text-gray-600 hover:bg-gray-700/20 rounded-lg">
+                                <div className="h-full flex items-center justify-center text-gray-500 hover:bg-gray-700/20 rounded-lg cursor-pointer">
                                   <Plus className="h-4 w-4" />
                                 </div>
                               )}

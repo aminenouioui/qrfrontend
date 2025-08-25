@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Delete Attendance</title>
+    <link rel="stylesheet" href="{% static 'css/styles.css' %}"> <!-- Optional CSS -->
+</head>
+<body>
+    <h1>Delete Attendance</h1>
+    <p>Are you sure you want to delete the attendance record for <strong>{{ attendance.student_name }}</strong> on <strong>{{ attendance.date|date:'Y-m-d H:i' }}</strong>?</p>
+    
+    <form method="POST">
+        {% csrf_token %}
+        <div>
+            <button type="submit">Confirm Deletion</button>
+            <a href="{% url 'attendance' %}">Cancel</a>
+        </div>
+    </form>
+</body>
+</html>

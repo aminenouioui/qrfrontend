@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Level List</title>
+    <style>
+        table {
+            width: 50%;
+            border-collapse: collapse;
+            margin: 20px 0;
+        }
+        table, th, td {
+            border: 1px solid black;
+        }
+        th, td {
+            padding: 10px;
+            text-align: left;
+        }
+        th {
+            background-color: #f2f2f2;
+        }
+        a {
+            text-decoration: none;
+            color: blue;
+        }
+        a:hover {
+            text-decoration: underline;
+        }
+    </style>
+</head>
+<body>
+    <h1>Level List</h1>
+    <a href="{% url 'add_level' %}">Add New Level</a>  <!-- Link to add a new level -->
+    <table>
+        <thead>
+            <tr>
+                <th>ID</th>
+                <th>Level Name</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for level in levels %}
+            <tr>
+                <td>{{ level.id }}</td>
+                <td>{{ level.level }}</td>
+                <td>
+
+                </td>
+            </tr>
+            {% empty %}
+            <tr>
+                <td colspan="3">No levels found.</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</body>
+</html>

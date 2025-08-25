@@ -1,0 +1,81 @@
+{% load custom_filters_1 %}
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Grade List</title>
+    <!-- Include jQuery for AJAX -->
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <style>
+        #status-message {
+            display: none;
+            color: green;
+            margin: 10px 0;
+        }
+        .error {
+            color: red;
+        }
+    </style>
+</head>
+<body>
+    <h1>Grades for Teacher ID: {{ teacher.id }} (Subject: {{ subject.nom }})</h1>
+    <div id="status-message"></div> <!-- Status message for AJAX responses -->
+
+    {% for student in students %}
+        <form method="post" action="">
+            {% csrf_token %}
+            <div style="display: flex; align-items: center; margin: 10px 0;">
+                <span>{{ student.prenom }} {{ student.nom }}</span>
+                <input type="number" name="grade_{{ student.id }}" 
+                       value="{% if student_grades|get_item:student.id %}{{ student_grades|get_item:student.id.grade }}{% endif %}" 
+                       min="0" max="20" step="0.01" style="margin-left: 10px; width: 100px;" required>
+                <input type="hidden" name="student" value="{{ student.id }}">
+                <button type="submit" name="student_id" value="{{ student.id }}" style="margin-left: 10px;">Save</button>
+            </div>
+        </form>
+    {% empty %}
+        <p>No students found.</p>
+    {% endfor %}
+
+    <a href="{% url 'add_grade' teacher_id=teacher.id %}">Add New Grade Individually</a>
+
+    <!-- JavaScript for AJAX form submission -->
+    <script>
+        $(document).ready(function() {
+            $('form').on('submit', function(event) {
+                event.preventDefault(); // Prevent the default form submission
+
+                var form = $(this);
+                var url = form.attr('action');
+                var formData = form.serialize(); // Serialize form data
+
+                $.ajax({
+                    url: url,
+                    type: 'POST',
+                    data: formData,
+                    headers: {
+                        'X-Requested-With': 'XMLHttpRequest' // Indicate this is an AJAX request
+                    },
+                    success: function(response) {
+                        if (response.success) {
+                            // Update the grade input field with the new value
+                            var studentId = response.student_id;
+                            var gradeInput = $('input[name="grade_' + studentId + '"]');
+                            gradeInput.val(response.grade);
+
+                            // Display a success message
+                            $('#status-message').text('Grade saved successfully!').removeClass('error').show().delay(3000).fadeOut();
+                        } else {
+                            // Display an error message
+                            $('#status-message').text('Error: ' + response.error).addClass('error').show().delay(3000).fadeOut();
+                        }
+                    },
+                    error: function() {
+                        // Display a generic error message
+                        $('#status-message').text('An error occurred while saving the grade.').addClass('error').show().delay(3000).fadeOut();
+                    }
+                });
+            });
+        });
+    </script>
+</body>
+</html>

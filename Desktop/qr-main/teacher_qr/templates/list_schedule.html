@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Liste des emplois du temps</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f4f4f4;
+            color: #333;
+            margin: 0;
+            padding: 20px;
+        }
+        h1 {
+            color: #4CAF50;
+            text-align: center;
+        }
+        ul {
+            list-style-type: none;
+            padding: 0;
+        }
+        li {
+            background-color: #fff;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            margin-bottom: 10px;
+            padding: 15px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+        li:nth-child(odd) {
+            background-color: #f9f9f9;
+        }
+        li:hover {
+            background-color: #f1f1f1;
+        }
+        .schedule-info {
+            margin: 5px 0;
+        }
+        .schedule-info strong {
+            color: #4CAF50;
+        }
+    </style>
+</head>
+<body>
+    <h1>Liste des emplois du temps</h1>
+    <ul>
+        {% for schedule in schedules %}
+        <li>
+            <div class="schedule-info"><strong>Enseignant:</strong> {{ schedule.teacher.nom }}</div>
+            <div class="schedule-info"><strong>Classe:</strong> {{ schedule.classe.num }}</div>
+            <div class="schedule-info"><strong>Matière:</strong> {{ schedule.subject.nom }}</div>
+            <div class="schedule-info"><strong>Jour:</strong> {{ schedule.get_day_display }}</div>
+            <div class="schedule-info"><strong>Heure de début:</strong> {{ schedule.start_time }}</div>
+            <div class="schedule-info"><strong>Heure de fin:</strong> {{ schedule.end_time }}</div>
+            <div class="schedule-info"><strong>Notes:</strong> {{ schedule.notes }}</div>
+            <a href="{% url 'update_schedule' schedule.id %}" style="color: blue; text-decoration: none;">Modifier</a>
+            <a href="{% url 'delete_schedule' schedule.id %}" onclick="return confirm('Êtes-vous sûr de vouloir supprimer cet emploi du temps ?')" style="color: red; text-decoration: none; margin-left: 10px;">Supprimer</a>
+        </li>
+        {% endfor %}
+    </ul>
+</body>
+</html>

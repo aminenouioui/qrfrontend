@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Teacher List</title>
+    <style>
+        .teacher-container {
+            margin-bottom: 20px;
+            padding: 20px;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            background-color: #f9f9f9;
+        }
+        .teacher-info {
+            font-size: 18px;
+            margin-bottom: 10px;
+        }
+        .qr-code-image {
+            width: 200px;
+            height: 200px;
+            display: block;
+            margin-top: 10px;
+        }
+        .teacher-photo {
+            width: 150px;
+            height: 150px;
+            border-radius: 5px;
+            object-fit: cover;
+            margin-top: 10px;
+        }
+        .actions {
+            margin-top: 10px;
+        }
+        .actions a, .actions button {
+            margin-right: 10px;
+            text-decoration: none;
+            padding: 5px 10px;
+            border: none;
+            border-radius: 3px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+        .actions a {
+            background-color: #4CAF50;
+            color: white;
+        }
+        .actions button {
+            background-color: #f44336;
+            color: white;
+        }
+        .actions a:hover {
+            background-color: #45a049;
+        }
+        .actions button:hover {
+            background-color: #e53935;
+        }
+        .filter-form {
+            margin-bottom: 20px;
+        }
+        .filter-form label {
+            font-weight: bold;
+        }
+        .filter-form select, .filter-form input {
+            width: 200px;
+            padding: 5px;
+            border-radius: 5px;
+            border: 1px solid #ccc;
+        }
+        .filter-form button {
+            padding: 5px 10px;
+            background-color: #007bff;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+        .filter-form button:hover {
+            background-color: #0056b3;
+        }
+    </style>
+</head>
+<body>
+    <h1>Teacher List</h1>
+
+    <!-- Formulaire de filtrage par niveau et ID -->
+    <form method="get" action="{% url 'teacher_list' %}" class="filter-form">
+        <label for="id">Filter by ID:</label>
+        <input type="text" name="id" id="id" placeholder="Enter teacher ID">
+        
+        <label for="level">Filter by Level:</label>
+        <select name="level" id="level" multiple>
+            <option value="1ere">1ere</option>
+            <option value="2eme">2eme</option>
+            <option value="3eme">3eme</option>
+            <!-- Ajoutez d'autres options de niveau si nécessaire -->
+        </select>
+        <button type="submit">Filter</button>
+    </form>
+
+    <!-- Lien pour ajouter un nouvel enseignant -->
+    <a href="{% url 'add_teacher' %}" style="display: inline-block; margin-bottom: 20px; padding: 10px 15px; background-color: #007bff; color: white; text-decoration: none; border-radius: 5px;">Add New Teacher</a>
+
+    <!-- Liste des enseignants -->
+    {% for teacher in teachers %}
+        <div class="teacher-container">
+            <div class="teacher-info">
+                <strong>ID:</strong> {{ teacher.pk }}<br>
+                <strong>{{ teacher.prenom }} {{ teacher.nom }}</strong><br>
+                <strong>Email:</strong> {{ teacher.mail }}<br>
+                <strong>Phone:</strong> {{ teacher.numero }}<br>
+                <strong>Address:</strong> {{ teacher.adresse }}<br>
+                <strong>Date of Birth:</strong> {{ teacher.date_naissance }}<br>
+                <strong>Level:</strong> {{ teacher.level }}<br> <!-- Afficher le niveau de l'enseignant -->
+            </div>
+           
+            <!-- Afficher la photo de l'enseignant si elle existe -->
+            {% if teacher.photo %}
+                <div>
+                    <strong>Photo:</strong><br>
+                    <img src="{{ teacher.photo.url }}" alt="Photo of {{ teacher.prenom }} {{ teacher.nom }}" class="teacher-photo">
+                </div>
+            {% endif %}
+           
+            <!-- Afficher le QR code de l'enseignant si il existe -->
+            {% if teacher.qr_code %}
+                <div>
+                    <strong>QR Code:</strong><br>
+                    <img src="{{ teacher.qr_code.url }}" alt="QR Code for {{ teacher.prenom }} {{ teacher.nom }}" class="qr-code-image">
+                </div>
+            {% endif %}
+           
+            <!-- Actions disponibles pour chaque enseignant -->
+            <div class="actions">
+                <a href="{% url 'teacher_detail' teacher.pk %}">Détails de l'Enseignant</a> |
+                <a href="{% url 'edit_teacher' teacher.pk %}">Edit</a>
+                <form action="{% url 'delete_teacher' teacher.pk %}" method="post" style="display: inline;">
+                    {% csrf_token %}
+                    <button type="submit" onclick="return confirm('Are you sure you want to delete {{ teacher.prenom }} {{ teacher.nom }}?')">Delete</button>
+                </form>
+            </div>
+        </div>
+    {% endfor %}
+</body>
+</html>

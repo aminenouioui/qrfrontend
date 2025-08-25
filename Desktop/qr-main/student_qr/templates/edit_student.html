@@ -1,0 +1,8 @@
+<!-- edit_student.html -->
+<h1>Edit Student: {{ student.name }}</h1>
+<form method="post" enctype="multipart/form-data">
+    {% csrf_token %}
+    {{ form.as_p }}
+    <button type="submit">Save Changes</button>
+    <a href="{% url 'student_list' %}">Cancel</a>
+</form>

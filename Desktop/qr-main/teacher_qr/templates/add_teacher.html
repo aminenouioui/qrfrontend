@@ -1,0 +1,18 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <title>Ajouter un Enseignant</title>
+</head>
+<body>
+    <h1>Ajouter un Enseignant</h1>
+    <form method="POST">
+        {% csrf_token %}
+        {{ form.as_p }}  <!-- Le formulaire reste inchangé, mais inclut le multi-choix -->
+
+        <button type="submit">Ajouter</button>
+    </form>
+    
+    <a href="{% url 'teacher_list' %}">Retour à la liste des enseignants</a>
+</body>
+</html>

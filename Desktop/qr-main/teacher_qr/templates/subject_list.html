@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Subject List</title>
+</head>
+<body>
+    <h1>Subject List</h1>
+    <ul>
+        {% for subject in subjects %}
+            <li>{{ subject.nom }}: {{ subject.description }}</li>
+        {% empty %}
+            <li>No subjects available.</li>
+        {% endfor %}
+    </ul>
+    <a href="{% url 'add_subject' %}">Add a New Subject</a>
+</body>
+</html>

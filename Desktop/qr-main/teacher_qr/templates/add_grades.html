@@ -1,0 +1,16 @@
+<!-- templates/grades/add_grade.html -->
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Add Grade</title>
+</head>
+<body>
+    <h1>Add Grade</h1>
+    <form method="post">
+        {% csrf_token %}
+        {{ form.as_p }}
+        <button type="submit">Save</button>
+    </form>
+    <a href="{% url 'list_grades' %}">Back to List</a>
+</body>
+</html>

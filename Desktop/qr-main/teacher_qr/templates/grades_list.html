@@ -1,0 +1,98 @@
+<!-- templates/grades/list_grades.html -->
+<!DOCTYPE html>
+<html>
+<head>
+    <title>List Grades</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+        th, td {
+            padding: 10px;
+            border: 1px solid #ddd;
+            text-align: left;
+        }
+        th {
+            background-color: #f4f4f4;
+        }
+        .filters {
+            margin-bottom: 20px;
+        }
+        .filters select, .filters button {
+            padding: 5px;
+            margin-right: 10px;
+        }
+    </style>
+</head>
+<body>
+    <h1>List Grades</h1>
+
+    <!-- Filter Form -->
+    <div class="filters">
+        <form method="get">
+            <label for="level">Filter by Level:</label>
+            <select name="level" id="level">
+                <option value="">All Levels</option>
+                {% for level in levels %}
+                    <option value="{{ level.id }}" {% if level.id|stringformat:"s" == selected_level %}selected{% endif %}>
+                        {{ level.level }}
+                    </option>
+                {% endfor %}
+            </select>
+
+            <label for="subject">Filter by Subject:</label>
+            <select name="subject" id="subject">
+                <option value="">All Subjects</option>
+                {% for subject in subjects %}
+                    <option value="{{ subject.id }}" {% if subject.id|stringformat:"s" == selected_subject %}selected{% endif %}>
+                        {{ subject.nom }}
+                    </option>
+                {% endfor %}
+            </select>
+
+            <button type="submit">Apply Filters</button>
+        </form>
+    </div>
+
+    <!-- Grades Table -->
+    <table>
+        <thead>
+            <tr>
+                <th>Student</th>
+                <th>Level</th>
+                <th>Subject</th>
+                <th>Grade</th>
+                <th>Date</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for grade in grades %}
+            <tr>
+                <td>{{ grade.student.nom }} {{ grade.student.prenom }}</td>
+                <td>{{ grade.level.level }}</td>
+                <td>{{ grade.subject.nom }}</td>
+                <td>{{ grade.grade }}</td>
+                <td>{{ grade.date_g }}</td>
+                <td>
+                    <a href="{% url 'edit_grade_t' grade.id %}">Edit</a> |
+                    <a href="{% url 'delete_grade_t' grade.id %}">Delete</a>
+                </td>
+            </tr>
+            {% empty %}
+            <tr>
+                <td colspan="6">No grades found.</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+
+    <a href="{% url 'add_grades' %}">Add New Grade</a>
+</body>
+</html>

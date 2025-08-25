@@ -1,0 +1,22 @@
+<!-- classe_list.html -->
+<h2>classe list</h2>
+<table>
+    <thead>
+        <tr>
+            <th>num classe</th>
+            <th>capacite</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for classe in classes %}
+        <tr>
+            <td>{{ classe.num }}</td>
+            <td>{{ classe.capacity }}</td>
+        </tr>
+        {% empty %}
+        <tr>
+            <td colspan="2">pas de classe</td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>

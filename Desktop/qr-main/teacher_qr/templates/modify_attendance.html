@@ -1,0 +1,15 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Modifier la Présence</title>
+</head>
+<body>
+    <h1>Modifier la Présence</h1>
+    <form method="post">
+        {% csrf_token %}
+        {{ form.as_p }}
+        <button type="submit">Enregistrer</button>
+    </form>
+    <a href="{% url 'attendance_list' %}">Retour à la liste des présences</a>
+</body>
+</html>

@@ -1,0 +1,16 @@
+<!-- templates/grades/delete_grade.html -->
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Delete Grade</title>
+</head>
+<body>
+    <h1>Delete Grade</h1>
+    <p>Are you sure you want to delete the grade for {{ grade.student.nom }} {{ grade.student.prenom }} in {{ grade.subject.name }}?</p>
+    <form method="post">
+        {% csrf_token %}
+        <button type="submit">Delete</button>
+    </form>
+    <a href="{% url 'list_grades' %}">Cancel</a>
+</body>
+</html>

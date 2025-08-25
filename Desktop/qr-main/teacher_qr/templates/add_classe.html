@@ -1,0 +1,7 @@
+<!-- add_classe.html -->
+<h2>add classe</h2>
+<form method="POST">
+    {% csrf_token %}
+    {{ form.as_p }}  <!-- عرض الحقول بشكل افتراضي -->
+    <button type="submit">add</button>
+</form>

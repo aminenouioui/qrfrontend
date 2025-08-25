@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Student Details</title>
+    <link rel="stylesheet" href="path/to/your/css/file.css"> <!-- Link to your CSS file -->
+    <style>
+        /* Basic CSS for the page */
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            background-color: #f4f4f9;
+            color: #333;
+        }
+        h1, h2 {
+            color: #2c3e50;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 20px;
+            background-color: #fff;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+            border-radius: 8px;
+            overflow: hidden;
+        }
+        th, td {
+            padding: 12px 15px;
+            border: 1px solid #ddd;
+            text-align: left;
+        }
+        th {
+            background-color: #2c3e50;
+            color: #fff;
+            font-weight: bold;
+        }
+        tr:nth-child(even) {
+            background-color: #f9f9f9;
+        }
+        tr:hover {
+            background-color: #f1f1f1;
+        }
+        img {
+            max-width: 150px;
+            height: auto;
+        }
+        a {
+            color: #007BFF;
+            text-decoration: none;
+        }
+        a:hover {
+            text-decoration: underline;
+        }
+        .actions {
+            margin-top: 20px;
+        }
+        .no-data {
+            text-align: center;
+            color: #777;
+            padding: 20px;
+        }
+
+        /* Status colors for attendance */
+        .status-present {
+            color: #28a745; /* Green for Present */
+            font-weight: bold;
+        }
+        .status-absent {
+            color: #dc3545; /* Red for Absent */
+            font-weight: bold;
+        }
+        .status-retard {
+            color: #ffc107; /* Yellow for Retard */
+            font-weight: bold;
+        }
+        .status-att {
+            color: #17a2b8; /* Blue for En Attente */
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+    <h1>Details for {{ student.prenom }} {{ student.nom }}</h1>
+    <p><strong>Date of Birth:</strong> {{ student.date_naissance }}</p>
+    <p><strong>Address:</strong> {{ student.adresse }}</p>
+    <p><strong>Class:</strong> {{ student.classe }}</p>
+    <p><strong>Email:</strong> {{ student.mail }}</p>
+    <p><strong>Phone Number:</strong> {{ student.numero }}</p>
+    <p><strong>Admission Status:</strong> {{ student.get_admission_s_display }}</p>
+
+    {% if student.photo %}
+        <p><strong>Photo:</strong><br><img src="{{ student.photo.url }}" alt="Student Photo"></p>
+    {% endif %}
+
+    {% if student.qr_code %}
+        <p><strong>QR Code:</strong><br><img src="{{ student.qr_code.url }}" alt="QR Code"></p>
+    {% endif %}
+
+    <!-- Grades Section -->
+    <h2>Grades</h2>
+    <table>
+        <thead>
+            <tr>
+                <th>Subject</th>
+                <th>Grade</th>
+                <th>Date</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for grade in grades %}
+            <tr>
+                <td>{{ grade.subject }}</td>
+                <td>{{ grade.grade }}</td>
+                <td>{{ grade.date_g }}</td>
+                <td>
+                    <a href="{% url 'edit_grade' grade.id %}">Edit</a> |
+                    <a href="{% url 'delete_grade' grade.id %}" onclick="return confirm('Are you sure you want to delete this grade?');">Delete</a>
+                </td>
+            </tr>
+            {% empty %}
+            <tr>
+                <td colspan="4" class="no-data">No grades available for this student.</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+
+    <!-- Schedule Section -->
+    <h2>Schedule</h2>
+    {% if schedules %}
+        <table>
+            <thead>
+                <tr>
+                    <th>Day</th>
+                    <th>Start Time</th>
+                    <th>End Time</th>
+                    <th>Subject</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for schedule in schedules %}
+                <tr>
+                    <td>{{ schedule.get_day_display }}</td>
+                    <td>{{ schedule.start_time }}</td>
+                    <td>{{ schedule.end_time }}</td>
+                    <td>{{ schedule.subject.nom }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    {% else %}
+        <p class="no-data">No schedule found for this student.</p>
+    {% endif %}
+
+    <!-- Attendance Records Section -->
+    <h2>Attendance Records</h2>
+    {% if student_attendance %}
+        <table>
+            <thead>
+                <tr>
+                    <th>Date</th>
+                    <th>Status</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for record in student_attendance %}
+                <tr>
+                    <td>{{ record.date }}</td>
+                    <td class="status-{{ record.status|lower }}">{{ record.get_status_display }}</td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="2" class="no-data">No attendance records found for this student.</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    {% else %}
+        <p class="no-data">No attendance records found for this student.</p>
+    {% endif %}
+
+    <!-- Links -->
+    <div class="actions">
+        <a href="{% url 'edit_student' student.pk %}">Edit Student</a> |
+        <a href="{% url 'add_grade' student.pk %}">Add Grades</a> |
+        <a href="{% url 'student_list' %}">Back to Student List</a>
+    </div>
+</body>
+</html>

@@ -1,0 +1,16 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <title>Confirmer la Suppression</title>
+</head>
+<body>
+    <h1>Confirmer la Suppression</h1>
+    <p>Êtes-vous sûr de vouloir supprimer {{ teacher.name }} ?</p>
+    <form method="POST">
+        {% csrf_token %}
+        <button type="submit">Confirmer</button>
+    </form>
+    <a href="{% url 'teacher_list' %}">Annuler</a>
+</body>
+</html>

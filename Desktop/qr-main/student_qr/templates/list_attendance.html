@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Attendance List</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f4f4f9;
+            padding: 20px;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            background: white;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+        }
+        th, td {
+            padding: 12px 15px;
+            text-align: left;
+            border-bottom: 1px solid #ddd;
+        }
+        th {
+            background-color: #007bff;
+            color: white;
+        }
+        tr:hover {
+            background-color: #f1f1f1;
+        }
+        .no-records {
+            text-align: center;
+            color: #777;
+            padding: 20px;
+        }
+        a {
+            display: inline-block;
+            margin-bottom: 20px;
+            padding: 10px 15px;
+            background-color: #007bff;
+            color: white;
+            text-decoration: none;
+            border-radius: 5px;
+        }
+        a:hover {
+            background-color: #0056b3;
+        }
+        .action-buttons {
+            display: flex;
+            gap: 10px;
+        }
+        .action-buttons a {
+            padding: 5px 10px;
+            border-radius: 3px;
+            font-size: 14px;
+        }
+        .action-buttons .edit {
+            background-color: #28a745;
+        }
+        .action-buttons .edit:hover {
+            background-color: #218838;
+        }
+        .action-buttons .delete {
+            background-color: #dc3545;
+        }
+        .action-buttons .delete:hover {
+            background-color: #c82333;
+        }
+    </style>
+</head>
+<body>
+    <h1>Attendance List</h1>
+    <a href="{% url 'add_attendance' %}">Add New Attendance</a>
+    <table>
+        <thead>
+            <tr>
+                <th>Student</th>
+                <th>Date</th>
+                <th>Status</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for record in attendance_records %}
+            <tr>
+                <td>{{ record.student.nom }} {{ record.student.prenom }}</td>
+                <td>{{ record.date }}</td>
+                <td>{{ record.get_status_display }}</td>
+                    <td class="action-buttons">
+                        <a href="{% url 'edit_attendance' record.id %}" class="edit">Edit</a>
+                        <a href="{% url 'delete_attendance' record.id %}" class="delete">Delete</a>
+                    </td>
+            </tr>
+            {% empty %}
+            <tr>
+                <td colspan="4" class="no-records">No attendance records found.</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</body>
+</html>

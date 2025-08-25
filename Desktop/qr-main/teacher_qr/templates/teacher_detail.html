@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Détails de l'enseignant</title>
+</head>
+<body>
+    <h1>Détails de l'enseignant</h1>
+    
+    <!-- Informations de l'enseignant -->
+    <h2>{{ teacher.prenom }} {{ teacher.nom }}</h2>
+    <p><strong>Date de naissance :</strong> {{ teacher.date_naissance }}</p>
+    <p><strong>Adresse :</strong> {{ teacher.adresse }}</p>
+    <p><strong>Email :</strong> {{ teacher.mail }}</p>
+    <p><strong>Subject :</strong> {{ teacher.subject }}</p>
+
+    <p><strong>Numéro de téléphone :</strong> {{ teacher.numero }}</p>
+    {% if teacher.photo %}
+        <img src="{{ teacher.photo.url }}" alt="Photo de {{ teacher.prenom }} {{ teacher.nom }}" width="150">
+    {% endif %}
+    {% if teacher.qr_code %}
+        <img src="{{ teacher.qr_code.url }}" alt="QR Code de {{ teacher.prenom }} {{ teacher.nom }}" width="150">
+    {% endif %}
+    
+    <!-- Horaires de l'enseignant -->
+    <h3>Horaires</h3>
+    <table border="1">
+        <thead>
+            <tr>
+                <th>Jour</th>
+                <th>Classe</th>
+                <th>Matière</th>
+                <th>Heure de début</th>
+                <th>Heure de fin</th>
+                <th>Notes</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for schedule in schedules %}
+                <tr>
+                    <td>{{ schedule.get_day_display }}</td>
+                    <td>{{ schedule.classe }}</td>
+                    <td>{{ schedule.subject }}</td>
+                    <td>{{ schedule.start_time }}</td>
+                    <td>{{ schedule.end_time }}</td>
+                    <td>{{ schedule.notes }}</td>
+                </tr>
+            {% empty %}
+                <tr>
+                    <td colspan="6">Aucun horaire trouvé.</td>
+                </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    
+    <!-- Présences de l'enseignant -->
+    <h3>Présences</h3>
+    <table border="1">
+        <thead>
+            <tr>
+                <th>Date</th>
+                <th>Matière</th>
+                <th>Statut</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for attendance in attendances %}
+                <tr>
+                    <td>{{ attendance.date }}</td>
+                    <td>{{ attendance.subject }}</td>
+                    <td>{{ attendance.get_status_display }}</td>
+                </tr>
+            {% empty %}
+                <tr>
+                    <td colspan="3">Aucune présence enregistrée.</td>
+                </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</body>
+</html>

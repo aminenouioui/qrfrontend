@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Liste des présences</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f4f4f4;
+            color: #333;
+            margin: 0;
+            padding: 20px;
+        }
+        h1 {
+            color: #4CAF50;
+            text-align: center;
+        }
+        ul {
+            list-style-type: none;
+            padding: 0;
+        }
+        li {
+            background-color: #fff;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            margin-bottom: 10px;
+            padding: 15px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+        li:nth-child(odd) {
+            background-color: #f9f9f9;
+        }
+        li:hover {
+            background-color: #f1f1f1;
+        }
+        .attendance-info {
+            margin: 5px 0;
+        }
+        .attendance-info strong {
+            color: #4CAF50;
+        }
+        .button-container {
+            margin-top: 10px;
+        }
+        .button {
+            background-color: #4CAF50; /* Green */
+            color: white;
+            padding: 10px 15px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            text-decoration: none;
+            margin-right: 10px;
+        }
+        .button:hover {
+            background-color: #45a049;
+        }
+    </style>
+</head>
+<body>
+    <h1>Liste des présences</h1>
+    <ul>
+        {% for attendance in attendances %}
+            <li>
+                <div class="attendance-info"><strong>Enseignant:</strong> {{ attendance.teacher.nom }} {{ attendance.teacher.prenom }}</div>
+                <div class="attendance-info"><strong>Date:</strong> {{ attendance.date }}</div>
+                <div class="attendance-info"><strong>Matière:</strong> {{ attendance.subject.nom }}</div> 
+                <div class="attendance-info"><strong>Statut:</strong> {{ attendance.get_status_display }}</div>
+                <div class="button-container">
+                    <a href="{% url 'modify_attendance' attendance.id %}" class="button">Modifier</a>
+                    <a href="{% url 'delete_attendance' attendance.id %}" class="button" onclick="return confirm('Êtes-vous sûr de vouloir supprimer cette présence?');">Supprimer</a>
+                </div>
+            </li>
+        {% endfor %}
+    </ul>
+</body>
+</html>

@@ -1,0 +1,16 @@
+<!-- teacher_qr/templates/add_grade_t.html -->
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Add Grade</title>
+</head>
+<body>
+    <h1>Add Grade</h1>
+    <form method="post">
+        {% csrf_token %}
+        {{ form.as_p }}
+        <button type="submit">Save</button>
+        <a href="{% url 'grade_list' teacher_id=teacher_id %}">Back to List</a>
+    </form>
+</body>
+</html>

@@ -1,0 +1,16 @@
+<!-- templates/grades/edit_grade.html -->
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Edit Grade</title>
+</head>
+<body>
+    <h1>Edit Grade</h1>
+    <form method="post">
+        {% csrf_token %}
+        {{ form.as_p }}
+        <button type="submit">Save</button>
+    </form>
+    <a href="{% url 'grades_list' %}">Back to List</a>
+</body>
+</html>
